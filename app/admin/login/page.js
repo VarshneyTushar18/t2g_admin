@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 
-const CF_SITE_KEY = process.env.NEXT_PUBLIC_CF_TURNSTILE_SITE_KEY;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,11 +34,17 @@ export default function LoginPage() {
 
   // ── Render Turnstile widget once script is ready ───────────────
   const renderTurnstile = useCallback(() => {
-    if (!window.turnstile || !turnstileRef.current) return;
+    const siteKey = process.env.NEXT_PUBLIC_CF_TURNSTILE_SITE_KEY;
+
+    if (!window.turnstile || !turnstileRef.current || !siteKey) {
+      console.error("Turnstile error → missing sitekey", { siteKey });
+      return;
+    }
+
     if (widgetIdRef.current !== null) return;
 
     widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
-      sitekey: CF_SITE_KEY,
+      sitekey: siteKey,
       theme: "dark",
       callback: (token) => setCfToken(token),
       "expired-callback": () => setCfToken(""),
@@ -78,20 +83,23 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        //credentials: "include", // this receives and stores the httpOnly cookie
-        body: JSON.stringify({ email, password, cfToken }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          //credentials: "include", // this receives and stores the httpOnly cookie
+          body: JSON.stringify({ email, password, cfToken }),
+        },
+      );
 
       const data = await res.json();
 
-if (!res.ok) {
-  throw new Error(data?.message || "Invalid email or password.");
-}
+      if (!res.ok) {
+        throw new Error(data?.message || "Invalid email or password.");
+      }
 
-router.push("/admin/dashboard");
+      router.push("/admin/dashboard");
     } catch (err) {
       setError(err.message);
       resetTurnstile();
