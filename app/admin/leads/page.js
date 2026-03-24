@@ -7,23 +7,23 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-useEffect(() => {
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/leads`, {
-    credentials: "include", 
-  })
-    .then((res) => {
-      if (!res.ok) throw new Error("Failed to fetch leads");
-      return res.json();
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/leads`, {
+      credentials: "include",
     })
-    .then((data) => {
-      setLeads(data);
-      setLoading(false);
-    })
-    .catch((err) => {
-      setError(err.message);
-      setLoading(false);
-    });
-}, []);
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch leads");
+        return res.json();
+      })
+      .then((data) => {
+        setLeads(data.data); 
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     if (loading || leads.length === 0) return;
@@ -379,7 +379,6 @@ useEffect(() => {
       `}</style>
 
       <div className="lp">
-
         {/* Header */}
         <div className="lp-header">
           <h1 className="lp-title">Leads Dashboard</h1>
@@ -407,14 +406,20 @@ useEffect(() => {
           {error && (
             <div className="state-box is-error">
               <span>⚠ {error}</span>
-              <small>Make sure your Express server is running on port 5000</small>
+              <small>
+                Make sure your Express server is running on port 5000
+              </small>
             </div>
           )}
 
           {/* Table */}
           {!loading && !error && (
             <div className="lp-body">
-              <table id="leadTable" className="display nowrap" style={{ width: "100%" }}>
+              <table
+                id="leadTable"
+                className="display nowrap"
+                style={{ width: "100%" }}
+              >
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -470,7 +475,6 @@ useEffect(() => {
             </div>
           )}
         </div>
-
       </div>
     </>
   );
