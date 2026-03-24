@@ -99,7 +99,7 @@ export default function LoginPage() {
         throw new Error(data?.message || "Invalid email or password.");
       }
 
-      router.push("/admin/dashboard");
+      router.push("/admin/leads");
     } catch (err) {
       setError(err.message);
       resetTurnstile();
