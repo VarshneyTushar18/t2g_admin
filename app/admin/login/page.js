@@ -87,8 +87,11 @@ export default function LoginPage() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          //credentials: "include", // this receives and stores the httpOnly cookie
+          headers: {
+            "Content-Type": "application/json",
+            "ngrok-skip-browser-warning": "true", // ✅ bypass ngrok challenge page
+          },
+          credentials: "include", // ✅ fixed: uncommented so httpOnly cookie is received
           body: JSON.stringify({ email, password, cfToken }),
         },
       );

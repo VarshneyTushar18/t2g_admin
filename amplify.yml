@@ -13,4 +13,5 @@ frontend:
       - '**/*'
   cache:
     paths:
+      - .next/cache/**/*      # ✅ correct Next.js cache path
       - node_modules/**/*
