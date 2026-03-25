@@ -75,20 +75,21 @@ export default function CaseStudiesPage() {
     setShowModal(true);
   };
 
-  const openEdit = (item) => {
-    setForm({
-      title: item.title,
-      slug: item.slug,
-      category: item.category_id,
-      short_description: item.short_description || "",
-      content: item.content || "",
-      is_featured: !!item.is_featured,
-      featured_image: null,
-      existingFeaturedImage: item.featured_image || null,
-    });
-    setEditingId(item.id);
-    setShowModal(true);
-  };
+const openEdit = (item) => {
+  setForm({
+    title: item.title,
+    slug: item.slug,
+    category_id: item.category_id, // ✅ FIXED KEY
+    short_description: item.short_description || "",
+    content: item.content || "",
+    is_featured: !!item.is_featured,
+    featured_image: item.featured_image || "", // optional improvement
+    existingFeaturedImage: item.featured_image || null,
+  });
+
+  setEditingId(item.id);
+  setShowModal(true);
+};
 
   const handleSubmit = async () => {
     if (submitting) return;
