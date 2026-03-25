@@ -30,7 +30,7 @@ export default function CaseStudiesPage() {
 
   useEffect(() => {
     const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/case-studies/categories`;
-    console.log("Fetching categories from:", url); 
+   
 
     fetch(url)
       .then((r) => {
