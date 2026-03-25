@@ -16,7 +16,8 @@ export default function LeadsPage() {
         return res.json();
       })
       .then((data) => {
-        setLeads(data.data); 
+        // Fix 1: Handle both { data: [...] } and plain array responses
+        setLeads(Array.isArray(data) ? data : (data.data ?? []));
         setLoading(false);
       })
       .catch((err) => {
@@ -26,7 +27,8 @@ export default function LeadsPage() {
   }, []);
 
   useEffect(() => {
-    if (loading || leads.length === 0) return;
+    // Fix 2: Added !leads check to guard against undefined
+    if (loading || !leads || leads.length === 0) return;
 
     let table = null;
 
@@ -50,7 +52,6 @@ export default function LeadsPage() {
         order: [[0, "desc"]],
         columnDefs: [
           { targets: [5, 6, 7], orderable: false },
-          // Hide lower priority columns first on small screens
           { responsivePriority: 1, targets: 0 }, // ID
           { responsivePriority: 2, targets: 1 }, // Name
           { responsivePriority: 3, targets: 2 }, // Email
@@ -412,8 +413,8 @@ export default function LeadsPage() {
             </div>
           )}
 
-          {/* Table */}
-          {!loading && !error && (
+          {/* Fix 3: Added Array.isArray(leads) guard before rendering table */}
+          {!loading && !error && Array.isArray(leads) && (
             <div className="lp-body">
               <table
                 id="leadTable"
