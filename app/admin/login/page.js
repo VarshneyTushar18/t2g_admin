@@ -88,8 +88,7 @@ export default function LoginPage() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            "ngrok-skip-browser-warning": "true", // ✅ bypass ngrok challenge page
+            "Content-Type": "application/json", // ✅ bypass ngrok challenge page
           },
           credentials: "include", // ✅ fixed: uncommented so httpOnly cookie is received
           body: JSON.stringify({ email, password, cfToken }),
