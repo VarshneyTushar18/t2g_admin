@@ -79,7 +79,7 @@ export default function CaseStudiesPage() {
     setForm({
       title: item.title,
       slug: item.slug,
-      category: item.category,
+      category: item.category_id,
       short_description: item.short_description || "",
       content: item.content || "",
       is_featured: !!item.is_featured,
