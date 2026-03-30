@@ -24,11 +24,11 @@ export default function AdminLayout({ children }) {
         <h2>Admin</h2>
 
         <div style={{ marginTop: "30px" }}>
-          <p>
+          {/* <p>
             <Link href="/admin/dashboard" style={{ color: "white" }}>
               Dashboard
             </Link>
-          </p>
+          </p> */}
 
           <p>
             <Link href="/admin/leads" style={{ color: "white" }}>
