@@ -93,9 +93,14 @@ export default function LeadsPage() {
   // =========================
   // UPDATE
   // =========================
+  // =========================
+  // UPDATE (FIXED)
+  // =========================
   async function handleUpdate(lead) {
     const name = prompt("Edit name", lead.name);
-    if (!name) return;
+
+    // Prevent empty or same value update
+    if (!name || name.trim() === lead.name) return;
 
     try {
       const res = await fetch(
@@ -104,22 +109,23 @@ export default function LeadsPage() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ ...lead, name }),
+          body: JSON.stringify({ name: name.trim() }), // ✅ only send updated field
         }
       );
 
       if (!res.ok) throw new Error("Update failed");
 
+      // Update UI instantly
       setLeads((prev) =>
         prev.map((l) =>
-          l.id === lead.id ? { ...l, name } : l
+          l.id === lead.id ? { ...l, name: name.trim() } : l
         )
       );
+
     } catch (err) {
       alert(err.message);
     }
   }
-
   function getBadgeStyle(formType) {
     if (formType === "contact_page")
       return { background: "#e8f0fe", color: "#4f8ef7" };
