@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-export default function LeadTable({ leads, onEdit, onDelete }) {
+export default function LeadTable({ leads, onDelete }) {
   const tableRef = useRef(null);
 
   useEffect(() => {
@@ -19,16 +19,15 @@ export default function LeadTable({ leads, onEdit, onDelete }) {
       await import("datatables.net-dt/css/dataTables.dataTables.css");
       await import("datatables.net-responsive-dt/css/responsive.dataTables.css");
 
-      // ✅ Proper destroy
+      // ✅ destroy properly
       if ($.fn.dataTable.isDataTable(tableRef.current)) {
         $(tableRef.current).DataTable().clear().destroy(true);
       }
 
-      // ✅ Delay init (important)
       setTimeout(() => {
         tableInstance = $(tableRef.current).DataTable({
-          responsive: true, // ✅ responsive plugin
-          scrollX: true,    // ✅ horizontal scroll for small screens
+          responsive: false,   // 🔥 IMPORTANT FIX (no child rows)
+          scrollX: true,
           autoWidth: false,
           pageLength: 10,
           lengthMenu: [10, 25, 50, 100],
@@ -51,7 +50,6 @@ export default function LeadTable({ leads, onEdit, onDelete }) {
 
   return (
     <div className="lp-body">
-      {/* ✅ RESPONSIVE WRAPPER */}
       <div style={{ width: "100%", overflowX: "auto" }}>
         <table
           ref={tableRef}
@@ -80,28 +78,19 @@ export default function LeadTable({ leads, onEdit, onDelete }) {
                 <td>{lead.email}</td>
                 <td>{lead.country}</td>
                 <td>{lead.phone}</td>
-                <td style={{ maxWidth: "200px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <td
+                  style={{
+                    maxWidth: "200px",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
                   {lead.message}
                 </td>
                 <td>{lead.form_type}</td>
                 <td>{lead.source_page}</td>
                 <td>
-                  <button
-                    onClick={() => onEdit(lead)}
-                    style={{
-                      background: "#4f8ef7",
-                      color: "#fff",
-                      border: "none",
-                      padding: "5px 8px",
-                      borderRadius: "5px",
-                      marginRight: "5px",
-                      cursor: "pointer",
-                      fontSize: "12px"
-                    }}
-                  >
-                    Edit
-                  </button>
-
                   <button
                     onClick={() => onDelete(lead.id)}
                     style={{
@@ -111,7 +100,7 @@ export default function LeadTable({ leads, onEdit, onDelete }) {
                       padding: "5px 8px",
                       borderRadius: "5px",
                       cursor: "pointer",
-                      fontSize: "12px"
+                      fontSize: "12px",
                     }}
                   >
                     Delete
