@@ -25,8 +25,5 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ✅ Scope DataTables styles so they don't leak into layout */
-.datatable-wrapper table.dataTable,
-.datatable-wrapper .dataTables_wrapper {
-  box-sizing: border-box;
-}
+
+

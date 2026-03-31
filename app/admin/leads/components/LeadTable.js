@@ -3,123 +3,95 @@
 import { useEffect, useRef } from "react";
 
 export default function LeadTable({ leads, onDelete, onEdit }) {
-  const tableRef = useRef(null);
-  const dataTableRef = useRef(null);
-  const onDeleteRef = useRef(onDelete);
-  const onEditRef = useRef(onEdit);
-
   useEffect(() => {
-    onDeleteRef.current = onDelete;
-  }, [onDelete]);
+    if (!leads || leads.length === 0) return;
 
-  useEffect(() => {
-    onEditRef.current = onEdit;
-  }, [onEdit]);
+    let table;
+    let timeout;
 
-  useEffect(() => {
-    if (!tableRef.current) return;
-
-    let isMounted = true;
-
-    const initTable = async () => {
+    const init = async () => {
       const $ = (await import("jquery")).default;
-
-      if (typeof window !== "undefined") {
-        window.jQuery = $;
-        window.$ = $;
-      }
-
+      if (typeof window !== "undefined") { window.jQuery = $; window.$ = $; }
       await import("datatables.net-dt");
-      await import("datatables.net-responsive-dt");
 
-      if (!isMounted || !tableRef.current) return;
-
-      if ($.fn.DataTable.isDataTable(tableRef.current)) return;
-
-      dataTableRef.current = $(tableRef.current).DataTable({
-        responsive: true,
-        pageLength: 10,
-        autoWidth: false,
-        scrollX: false,
-        data: leads || [],
-        columns: [
-          { data: "id", defaultContent: "" },
-          { data: "name", defaultContent: "" },
-          { data: "email", defaultContent: "" },
-          { data: "country", defaultContent: "" },
-          { data: "phone", defaultContent: "" },
-          { data: "message", defaultContent: "", width: "200px" },
-          { data: "form_type", defaultContent: "" },
-          { data: "source_page", defaultContent: "", width: "200px" },
-          {
-            data: null,
-            orderable: false,
-            render: (data, type, row) =>
-              `<button class="edit-btn" data-id="${row.id}" data-name="${encodeURIComponent(row.name ?? '')}" style="background:#3b82f6;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;margin-right:6px;">Edit</button>
-               <button class="delete-btn" data-id="${row.id}" style="background:#ef4444;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;">Delete</button>`,
-          },
-        ],
-      });
-
-      $(tableRef.current).on("click", ".edit-btn", function () {
-        const id = $(this).data("id");
-        const name = decodeURIComponent($(this).data("name"));
-        onEditRef.current?.({ id, name });
-      });
-
-      $(tableRef.current).on("click", ".delete-btn", function () {
-        const id = $(this).data("id");
-        if (confirm("Delete this lead?")) {
-          onDeleteRef.current?.(id);
+      timeout = setTimeout(() => {
+        if ($.fn.DataTable.isDataTable("#leadsTable")) {
+          $("#leadsTable").DataTable().destroy();
         }
-      });
+
+        table = $("#leadsTable").DataTable({
+          pageLength: 10,
+          autoWidth: false,
+          responsive: false,
+          order: [[0, "desc"]],
+          createdRow: function(row) {
+            row.style.borderBottom = "1px solid #e2e8f0";
+          },
+          initComplete: function() {
+            // Style the wrapper
+            const wrapper = document.getElementById("leadsTable_wrapper");
+            if (wrapper) {
+              wrapper.style.fontFamily = "Inter, Arial, sans-serif";
+              wrapper.style.fontSize = "13.5px";
+              wrapper.style.color = "#1e293b";
+            }
+          }
+        });
+      }, 50);
     };
 
-    initTable();
+    init();
 
     return () => {
-      isMounted = false;
-      if (dataTableRef.current) {
-        dataTableRef.current.destroy();
-        dataTableRef.current = null;
-      }
+      clearTimeout(timeout);
+      if (table) table.destroy();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (dataTableRef.current && leads) {
-      dataTableRef.current.clear();
-      dataTableRef.current.rows.add(leads);
-      dataTableRef.current.draw(false);
-    }
   }, [leads]);
 
   return (
-    // ✅ datatable-wrapper scopes DataTables CSS away from layout
-    <div
-      className="datatable-wrapper"
-      style={{ width: "100%", maxWidth: "100%", overflowX: "auto", contain: "layout" }}
-    >
-      <table
-        ref={tableRef}
-        className="display"
-        style={{ width: "100%" }}
-      >
+    <div style={{ width: "100%", overflowX: "auto", background: "#fff", borderRadius: "10px", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+      <table id="leadsTable" className="display" style={{ width: "100%" }}>
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Country</th>
-            <th>Phone</th>
-            <th>Message</th>
-            <th>Form Type</th>
-            <th>Source Page</th>
-            <th>Actions</th>
+            {["ID","Name","Email","Country","Phone","Message","Form Type","Source Page","Actions"].map(h => (
+              <th key={h} style={{ background: "#f8fafc", color: "#64748b", fontWeight: 600, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", padding: "10px 14px", borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" }}>
+                {h}
+              </th>
+            ))}
           </tr>
         </thead>
-        <tbody />
+        <tbody>
+          {leads.map((lead) => (
+            <tr key={lead.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+              <td style={{ padding: "10px 14px", color: "#94a3b8", fontSize: "12px" }}>{lead.id}</td>
+              <td style={{ padding: "10px 14px", fontWeight: 500 }}>{lead.name}</td>
+              <td style={{ padding: "10px 14px", color: "#3b82f6" }}>{lead.email}</td>
+              <td style={{ padding: "10px 14px" }}>{lead.country}</td>
+              <td style={{ padding: "10px 14px" }}>{lead.phone}</td>
+              <td style={{ padding: "10px 14px", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lead.message}</td>
+              <td style={{ padding: "10px 14px" }}>
+                <span style={{ background: "#eff6ff", color: "#3b82f6", padding: "2px 8px", borderRadius: "20px", fontSize: "11.5px", fontWeight: 500 }}>
+                  {lead.form_type}
+                </span>
+              </td>
+              <td style={{ padding: "10px 14px", color: "#64748b", fontSize: "12.5px" }}>{lead.source_page}</td>
+              <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                <button
+                  onClick={() => onEdit(lead)}
+                  style={{ background: "#3b82f6", color: "#fff", border: "none", padding: "5px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12.5px", fontWeight: 500, marginRight: "6px" }}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => { if (confirm("Delete this lead?")) onDelete(lead.id); }}
+                  style={{ background: "#ef4444", color: "#fff", border: "none", padding: "5px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12.5px", fontWeight: 500 }}
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
       </table>
     </div>
   );
