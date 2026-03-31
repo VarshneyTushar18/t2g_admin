@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+@import "datatables.net-dt/css/dataTables.dataTables.css";
+@import "datatables.net-responsive-dt/css/responsive.dataTables.css";
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
