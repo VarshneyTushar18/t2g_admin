@@ -1,10 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import $ from "jquery";
-
-import "datatables.net-dt";
-import "datatables.net-responsive-dt";
 
 export default function LeadTable({ leads, onDelete }) {
   const tableRef = useRef(null);
@@ -13,22 +9,38 @@ export default function LeadTable({ leads, onDelete }) {
   useEffect(() => {
     if (!tableRef.current) return;
 
-    // Destroy previous instance
-    if (dataTableRef.current) {
-      dataTableRef.current.destroy();
-    }
+    const initTable = async () => {
+      // ✅ Load jQuery ONLY in browser
+      const $ = (await import("jquery")).default;
 
-    // Initialize DataTable AFTER DOM update
-    dataTableRef.current = $(tableRef.current).DataTable({
-      responsive: true,
-      pageLength: 10,
-      autoWidth: false,
-      destroy: true,
-      columnDefs: [
-        { targets: [5, 7], width: "200px" },
-      ],
-    });
+      // ✅ Load DataTables AFTER jQuery
+      await import("datatables.net-dt");
+      await import("datatables.net-responsive-dt");
 
+      // Destroy previous instance if exists
+      if (dataTableRef.current) {
+        dataTableRef.current.destroy();
+      }
+
+      // Initialize DataTable
+      dataTableRef.current = $(tableRef.current).DataTable({
+        responsive: true,
+        pageLength: 10,
+        autoWidth: false,
+        destroy: true,
+        columnDefs: [
+          { targets: [5, 7], width: "200px" },
+        ],
+      });
+    };
+
+    initTable();
+
+    return () => {
+      if (dataTableRef.current) {
+        dataTableRef.current.destroy();
+      }
+    };
   }, [leads]);
 
   return (
