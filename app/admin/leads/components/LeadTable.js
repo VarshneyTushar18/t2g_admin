@@ -2,52 +2,108 @@
 
 import { useEffect, useRef } from "react";
 
-export default function LeadTable({ leads, onDelete }) {
+export default function LeadTable({ leads, onDelete, onEdit }) {
   const tableRef = useRef(null);
   const dataTableRef = useRef(null);
+  const onDeleteRef = useRef(onDelete);
+  const onEditRef = useRef(onEdit);
+
+  useEffect(() => {
+    onDeleteRef.current = onDelete;
+  }, [onDelete]);
+
+  useEffect(() => {
+    onEditRef.current = onEdit;
+  }, [onEdit]);
 
   useEffect(() => {
     if (!tableRef.current) return;
 
+    let isMounted = true;
+
     const initTable = async () => {
-      // ✅ Load jQuery ONLY in browser
       const $ = (await import("jquery")).default;
 
-      // ✅ Load DataTables AFTER jQuery
+      if (typeof window !== "undefined") {
+        window.jQuery = $;
+        window.$ = $;
+      }
+
       await import("datatables.net-dt");
       await import("datatables.net-responsive-dt");
 
-      // Destroy previous instance if exists
-      if (dataTableRef.current) {
-        dataTableRef.current.destroy();
-      }
+      if (!isMounted || !tableRef.current) return;
 
-      // Initialize DataTable
+      if ($.fn.DataTable.isDataTable(tableRef.current)) return;
+
       dataTableRef.current = $(tableRef.current).DataTable({
         responsive: true,
         pageLength: 10,
         autoWidth: false,
-        destroy: true,
-        columnDefs: [
-          { targets: [5, 7], width: "200px" },
+        scrollX: false,
+        data: leads || [],
+        columns: [
+          { data: "id", defaultContent: "" },
+          { data: "name", defaultContent: "" },
+          { data: "email", defaultContent: "" },
+          { data: "country", defaultContent: "" },
+          { data: "phone", defaultContent: "" },
+          { data: "message", defaultContent: "", width: "200px" },
+          { data: "form_type", defaultContent: "" },
+          { data: "source_page", defaultContent: "", width: "200px" },
+          {
+            data: null,
+            orderable: false,
+            render: (data, type, row) =>
+              `<button class="edit-btn" data-id="${row.id}" data-name="${encodeURIComponent(row.name ?? '')}" style="background:#3b82f6;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;margin-right:6px;">Edit</button>
+               <button class="delete-btn" data-id="${row.id}" style="background:#ef4444;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;">Delete</button>`,
+          },
         ],
+      });
+
+      $(tableRef.current).on("click", ".edit-btn", function () {
+        const id = $(this).data("id");
+        const name = decodeURIComponent($(this).data("name"));
+        onEditRef.current?.({ id, name });
+      });
+
+      $(tableRef.current).on("click", ".delete-btn", function () {
+        const id = $(this).data("id");
+        if (confirm("Delete this lead?")) {
+          onDeleteRef.current?.(id);
+        }
       });
     };
 
     initTable();
 
     return () => {
+      isMounted = false;
       if (dataTableRef.current) {
         dataTableRef.current.destroy();
+        dataTableRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (dataTableRef.current && leads) {
+      dataTableRef.current.clear();
+      dataTableRef.current.rows.add(leads);
+      dataTableRef.current.draw(false);
+    }
   }, [leads]);
 
   return (
-    <div style={{ overflowX: "auto" }}>
+    // ✅ datatable-wrapper scopes DataTables CSS away from layout
+    <div
+      className="datatable-wrapper"
+      style={{ width: "100%", maxWidth: "100%", overflowX: "auto", contain: "layout" }}
+    >
       <table
         ref={tableRef}
-        className="display nowrap"
+        className="display"
         style={{ width: "100%" }}
       >
         <thead>
@@ -63,40 +119,7 @@ export default function LeadTable({ leads, onDelete }) {
             <th>Actions</th>
           </tr>
         </thead>
-
-        <tbody>
-          {leads.map((lead) => (
-            <tr key={lead.id}>
-              <td>{lead.id}</td>
-              <td>{lead.name}</td>
-              <td>{lead.email}</td>
-              <td>{lead.country}</td>
-              <td>{lead.phone}</td>
-              <td>{lead.message}</td>
-              <td>{lead.form_type}</td>
-              <td>{lead.source_page}</td>
-              <td>
-                <button
-                  onClick={() => {
-                    if (confirm("Delete this lead?")) {
-                      onDelete(lead.id);
-                    }
-                  }}
-                  style={{
-                    background: "#ef4444",
-                    color: "#fff",
-                    border: "none",
-                    padding: "6px 10px",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
+        <tbody />
       </table>
     </div>
   );

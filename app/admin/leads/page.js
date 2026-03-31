@@ -22,8 +22,8 @@ export default function LeadsPage() {
 
       <LeadTable
         leads={leads}
-        onEdit={handleEdit}
         onDelete={handleDelete}
+        onEdit={handleEdit}
       />
     </div>
   );
