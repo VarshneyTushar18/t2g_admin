@@ -13,14 +13,7 @@ export default function AdminLayout({ children }) {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      <aside
-        style={{
-          width: "220px",
-          background: "#1e293b",
-          color: "white",
-          padding: "20px",
-        }}
-      >
+     <aside className="w-[220px] min-w-[220px] shrink-0 bg-slate-800 text-white p-5">
         <h2>Admin</h2>
 
         <div style={{ marginTop: "30px" }}>
