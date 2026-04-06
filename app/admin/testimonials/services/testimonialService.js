@@ -3,36 +3,64 @@ const API = `${API_BASE}/api/testimonials`;
 
 export async function getTestimonials() {
   const res = await fetch(API, { credentials: "include" });
+  if (!res.ok) throw new Error("Failed to fetch testimonials");
   return res.json();
 }
 
 export async function createTestimonial(form) {
   const data = new FormData();
-  data.append("name",        form.name);
-  data.append("stars",       form.stars);
-  data.append("text",        form.text);
-  data.append("companyName", form.companyName);
-  data.append("link",        form.link || "");
-  if (form.avatar)      data.append("avatar",      form.avatar);
-  if (form.companyLogo) data.append("companyLogo", form.companyLogo);
+  data.append("name",        form.name        || "");
+  data.append("stars",       form.stars       || 5);
+  data.append("text",        form.text        || "");
+  data.append("position",    form.position    || "");   // ✅ added
+  data.append("companyName", form.companyName || "");
+  data.append("link",        form.link        || "");
+  data.append("status",      form.is_active ? 1 : 0);  // ✅ unified is_active → status
 
-  return fetch(API, { method: "POST", credentials: "include", body: data });
+  // ✅ Only append files, not null/string values
+  if (form.avatar instanceof File)      data.append("avatar",      form.avatar);
+  if (form.companyLogo instanceof File) data.append("companyLogo", form.companyLogo);
+
+  const res = await fetch(API, {
+    method:      "POST",
+    credentials: "include",
+    body:        data,
+  });
+
+  if (!res.ok) throw new Error("Failed to create testimonial");
+  return res.json();
 }
 
 export async function updateTestimonial(id, form) {
   const data = new FormData();
-  data.append("name",        form.name);
-  data.append("stars",       form.stars);
-  data.append("text",        form.text);
-  data.append("companyName", form.companyName);
-  data.append("link",        form.link || "");
-  data.append("status",      form.status ? 1 : 0);
-  if (form.avatar)      data.append("avatar",      form.avatar);
-  if (form.companyLogo) data.append("companyLogo", form.companyLogo);
+  data.append("name",        form.name        || "");
+  data.append("stars",       form.stars       || 5);
+  data.append("text",        form.text        || "");
+  data.append("position",    form.position    || "");   // ✅ added
+  data.append("companyName", form.companyName || "");
+  data.append("link",        form.link        || "");
+  data.append("status",      form.is_active ? 1 : 0);  // ✅ unified is_active → status
 
-  return fetch(`${API}/${id}`, { method: "PUT", credentials: "include", body: data });
+  // ✅ Only append files, not null/string values
+  if (form.avatar instanceof File)      data.append("avatar",      form.avatar);
+  if (form.companyLogo instanceof File) data.append("companyLogo", form.companyLogo);
+
+  const res = await fetch(`${API}/${id}`, {
+    method:      "PUT",
+    credentials: "include",
+    body:        data,
+  });
+
+  if (!res.ok) throw new Error("Failed to update testimonial");
+  return res.json();
 }
 
 export async function deleteTestimonial(id) {
-  return fetch(`${API}/${id}`, { method: "DELETE", credentials: "include" });
+  const res = await fetch(`${API}/${id}`, {
+    method:      "DELETE",
+    credentials: "include",
+  });
+
+  if (!res.ok) throw new Error("Failed to delete testimonial");
+  return res.json();
 }
