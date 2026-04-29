@@ -30,7 +30,7 @@ export default function CaseStudiesPage() {
 
   useEffect(() => {
     const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/case-studies/categories`;
-    console.log("Fetching categories from:", url); 
+   
 
     fetch(url)
       .then((r) => {
@@ -75,20 +75,21 @@ export default function CaseStudiesPage() {
     setShowModal(true);
   };
 
-  const openEdit = (item) => {
-    setForm({
-      title: item.title,
-      slug: item.slug,
-      category: item.category,
-      short_description: item.short_description || "",
-      content: item.content || "",
-      is_featured: !!item.is_featured,
-      featured_image: null,
-      existingFeaturedImage: item.featured_image || null,
-    });
-    setEditingId(item.id);
-    setShowModal(true);
-  };
+const openEdit = (item) => {
+  setForm({
+    title: item.title,
+    slug: item.slug,
+    category_id: item.category_id, // ✅ FIXED KEY
+    short_description: item.short_description || "",
+    content: item.content || "",
+    is_featured: !!item.is_featured,
+    featured_image: item.featured_image || "", // optional improvement
+    existingFeaturedImage: item.featured_image || null,
+  });
+
+  setEditingId(item.id);
+  setShowModal(true);
+};
 
   const handleSubmit = async () => {
     if (submitting) return;

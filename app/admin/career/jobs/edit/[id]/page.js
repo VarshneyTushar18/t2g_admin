@@ -40,7 +40,7 @@ export default function EditJobPage() {
         );
 
         const data = await res.json();
-        console.log("API RESPONSE:", data);
+     
 
         const job = data?.data?.[0] || data?.data || data?.job || data;
 

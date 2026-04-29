@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
-
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -381,10 +381,14 @@ export default function LoginPage() {
 
         <div className={`card${shake ? " shake" : ""}`}>
           <div className="logo-wrap">
-            <div className="logo-icon">⚡</div>
-            <div className="logo-text">
-              Tech2<span>Globe</span>
-            </div>
+            <Image
+              src="/tech2globe-logo-white.webp" // place file inside /public
+              alt="Logo"
+              width={190}
+              height={54}
+              className="logo-img"
+            />
+           
           </div>
 
           <h1>Welcome back</h1>
