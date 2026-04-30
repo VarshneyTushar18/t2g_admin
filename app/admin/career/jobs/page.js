@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import React from "react";
+import { api } from "@/lib/api";
 
 export default function JobsAdminPage() {
   const [jobs, setJobs] = useState([]);
@@ -11,19 +13,11 @@ export default function JobsAdminPage() {
 
   const fetchJobs = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/career/admin/jobs`, {
-        credentials: "include",
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setJobs(data.data);
-      }
+      const data = await api.get("/api/career/admin/jobs");
+      if (data.success) setJobs(data.data);
     } catch (err) {
       console.error(err);
     }
-
     setLoading(false);
   };
 
@@ -33,160 +27,154 @@ export default function JobsAdminPage() {
 
   const deleteJob = async (id) => {
     if (!confirm("Delete this job?")) return;
-
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/career/admin/jobs/${id}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-
-    fetchJobs();
+    try {
+      await api.delete(`/api/career/admin/jobs/${id}`);
+      fetchJobs();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
     <>
       <style>{`
+        .jp{
+          min-height:100vh;
+          background:#f0f2f5;
+          padding:20px 16px;
+          font-family:'Segoe UI',system-ui,sans-serif;
+        }
 
-      .jp{
-        min-height:100vh;
-        background:#f0f2f5;
-        padding:20px 16px;
-        font-family:'Segoe UI',system-ui,sans-serif;
-      }
+        .jp-header{
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          margin-bottom:20px;
+          flex-wrap:wrap;
+          gap:10px;
+        }
 
-      .jp-header{
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        margin-bottom:20px;
-        flex-wrap:wrap;
-        gap:10px;
-      }
+        .jp-title{
+          font-size:26px;
+          font-weight:800;
+          color:#1a1a2e;
+        }
 
-      .jp-title{
-        font-size:26px;
-        font-weight:800;
-        color:#1a1a2e;
-      }
+        .jp-btn{
+          background:#4f8ef7;
+          color:#fff;
+          border:none;
+          padding:8px 14px;
+          border-radius:8px;
+          font-size:13px;
+          font-weight:700;
+          cursor:pointer;
+        }
 
-      .jp-btn{
-        background:#4f8ef7;
-        color:#fff;
-        border:none;
-        padding:8px 14px;
-        border-radius:8px;
-        font-size:13px;
-        font-weight:700;
-        cursor:pointer;
-      }
+        .jp-btn:hover{
+          background:#3a73d6;
+        }
 
-      .jp-btn:hover{
-        background:#3a73d6;
-      }
+        .jp-card{
+          background:#fff;
+          border-radius:14px;
+          box-shadow:0 2px 16px rgba(0,0,0,.07);
+          overflow:hidden;
+        }
 
-      .jp-card{
-        background:#fff;
-        border-radius:14px;
-        box-shadow:0 2px 16px rgba(0,0,0,.07);
-        overflow:hidden;
-      }
+        .jp-card-head{
+          padding:16px 20px;
+          border-bottom:1px solid #eee;
+          font-weight:700;
+          font-size:14px;
+          display:flex;
+          align-items:center;
+          gap:8px;
+        }
 
-      .jp-card-head{
-        padding:16px 20px;
-        border-bottom:1px solid #eee;
-        font-weight:700;
-        font-size:14px;
-        display:flex;
-        align-items:center;
-        gap:8px;
-      }
+        .live-dot{
+          width:8px;
+          height:8px;
+          background:#2dd4a0;
+          border-radius:50%;
+          box-shadow:0 0 6px #2dd4a0;
+        }
 
-      .live-dot{
-        width:8px;
-        height:8px;
-        background:#2dd4a0;
-        border-radius:50%;
-        box-shadow:0 0 6px #2dd4a0;
-      }
+        .jp-body{
+          padding:16px;
+        }
 
-      .jp-body{
-        padding:16px;
-      }
+        table{
+          width:100%;
+          border-collapse:collapse;
+          font-size:13px;
+        }
 
-      table{
-        width:100%;
-        border-collapse:collapse;
-        font-size:13px;
-      }
+        thead th{
+          background:#f8f9fb;
+          text-transform:uppercase;
+          font-size:11px;
+          letter-spacing:.7px;
+          padding:12px;
+          color:#666;
+          border-bottom:2px solid #eee;
+        }
 
-      thead th{
-        background:#f8f9fb;
-        text-transform:uppercase;
-        font-size:11px;
-        letter-spacing:.7px;
-        padding:12px;
-        color:#666;
-        border-bottom:2px solid #eee;
-      }
+        tbody td{
+          padding:12px;
+          border-bottom:1px solid #f1f1f1;
+        }
 
-      tbody td{
-        padding:12px;
-        border-bottom:1px solid #f1f1f1;
-      }
+        tbody tr:hover{
+          background:#f7f9ff;
+        }
 
-      tbody tr:hover{
-        background:#f7f9ff;
-      }
+        .actions{
+          display:flex;
+          gap:6px;
+          flex-wrap:wrap;
+        }
 
-      .actions{
-        display:flex;
-        gap:6px;
-        flex-wrap:wrap;
-      }
+        .btn{
+          padding:5px 10px;
+          font-size:12px;
+          border-radius:6px;
+          border:none;
+          cursor:pointer;
+        }
 
-      .btn{
-        padding:5px 10px;
-        font-size:12px;
-        border-radius:6px;
-        border:none;
-        cursor:pointer;
-      }
+        .btn-view{ background:#e8f0fe; color:#4f8ef7;}
+        .btn-edit{ background:#e6faf4; color:#16a37f;}
+        .btn-delete{ background:#fde8e8; color:#e74c3c;}
 
-      .btn-view{ background:#e8f0fe; color:#4f8ef7;}
-      .btn-edit{ background:#e6faf4; color:#16a37f;}
-      .btn-delete{ background:#fde8e8; color:#e74c3c;}
+        .job-details{
+          background:#fafbff;
+          padding:16px;
+        }
 
-      .job-details{
-        background:#fafbff;
-        padding:16px;
-      }
+        .job-details table{
+          width:100%;
+        }
 
-      .job-details table{
-        width:100%;
-      }
+        .job-details th{
+          width:200px;
+          text-align:left;
+          font-size:12px;
+          color:#666;
+        }
 
-      .job-details th{
-        width:200px;
-        text-align:left;
-        font-size:12px;
-        color:#666;
-      }
+        .job-details td{
+          font-size:13px;
+        }
 
-      .job-details td{
-        font-size:13px;
-      }
-
-      .state{
-        padding:50px;
-        text-align:center;
-        color:#888;
-      }
-
+        .state{
+          padding:50px;
+          text-align:center;
+          color:#888;
+        }
       `}</style>
 
       <div className="jp">
-
-        {/* Header */}
-
         <div className="jp-header">
           <h1 className="jp-title">Jobs Dashboard</h1>
 
@@ -198,17 +186,13 @@ export default function JobsAdminPage() {
           </button>
         </div>
 
-        {/* Card */}
-
         <div className="jp-card">
-
           <div className="jp-card-head">
             <div className="live-dot" />
             All Job Listings
           </div>
 
           <div className="jp-body">
-
             {loading && <div className="state">Loading jobs...</div>}
 
             {!loading && jobs.length === 0 && (
@@ -228,11 +212,9 @@ export default function JobsAdminPage() {
                 </thead>
 
                 <tbody>
-
                   {jobs.map((job) => (
-                    <>
-
-                      <tr key={job.id}>
+                    <React.Fragment key={job.id}>
+                      <tr>
                         <td>{job.title}</td>
                         <td>{job.experience}</td>
                         <td>{job.positions}</td>
@@ -240,7 +222,6 @@ export default function JobsAdminPage() {
 
                         <td>
                           <div className="actions">
-
                             <button
                               className="btn btn-view"
                               onClick={() =>
@@ -265,7 +246,6 @@ export default function JobsAdminPage() {
                             >
                               Delete
                             </button>
-
                           </div>
                         </td>
                       </tr>
@@ -273,57 +253,42 @@ export default function JobsAdminPage() {
                       {openRow === job.id && (
                         <tr>
                           <td colSpan="5">
-
                             <div className="job-details">
-
                               <table>
                                 <tbody>
-
                                   <tr>
                                     <th>Location</th>
                                     <td>{job.location}</td>
                                   </tr>
-
                                   <tr>
                                     <th>Qualification</th>
                                     <td>{job.qualification}</td>
                                   </tr>
-
                                   <tr>
                                     <th>Salary</th>
                                     <td>{job.salary}</td>
                                   </tr>
-
                                   <tr>
                                     <th>Skills</th>
                                     <td>{job.skills}</td>
                                   </tr>
-
                                   <tr>
                                     <th>Responsibilities</th>
                                     <td>{job.responsibilities}</td>
                                   </tr>
-
                                 </tbody>
                               </table>
-
                             </div>
-
                           </td>
                         </tr>
                       )}
-
-                    </>
+                    </React.Fragment>
                   ))}
-
                 </tbody>
               </table>
             )}
-
           </div>
-
         </div>
-
       </div>
     </>
   );
