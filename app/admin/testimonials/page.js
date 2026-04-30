@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import useTestimonials from "./hooks/useTestimonials";
 import TestimonialTable from "./components/TestimonialTable";
 import TestimonialModal from "./components/TestimonialModal";
+import { api } from "@/lib/api";
 import {
   createTestimonial,
   updateTestimonial,
@@ -12,42 +13,33 @@ import {
 
 import "./styles/testimonials.css";
 
-const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
 const emptyForm = {
-  name:        "",
-  stars:       5,
-  text:        "",
-  position:    "",
+  name: "",
+  stars: 5,
+  text: "",
+  position: "",
   companyName: "",
-  link:        "",
-  is_active:   true,
-  avatar:      null,
+  link: "",
+  is_active: true,
+  avatar: null,
   companyLogo: null,
 };
 
 export default function TestimonialsPage() {
   const { items, loading, error, reload } = useTestimonials();
 
-  const [showModal,     setShowModal]     = useState(false);
-  const [editingId,     setEditingId]     = useState(null);
-  const [form,          setForm]          = useState(emptyForm);
-  const [pendingEditId, setPendingEditId] = useState(null); // ✅ bridges jQuery → React
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [pendingEditId, setPendingEditId] = useState(null);
 
-  // ✅ Step 1: When jQuery sets pendingEditId, fetch data and open modal inside React
   useEffect(() => {
     if (!pendingEditId) return;
 
     async function fetchAndOpen() {
       try {
-        const res = await fetch(`${api}/api/testimonials/${pendingEditId}`, {
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Failed to fetch testimonial");
+        const item = await api.get(`/api/testimonials/${pendingEditId}`);
 
-        const item = await res.json();
-
-        // ✅ Populate all fields including existing image URLs
         setForm({
           name:        item.name        || "",
           stars:       item.stars       || 5,
@@ -59,24 +51,23 @@ export default function TestimonialsPage() {
             item.status === "active" ||
             item.status === true     ||
             item.status === 1,
-          avatar:      item.avatar      || null, // ✅ keep existing URL
-          companyLogo: item.companyLogo || null, // ✅ keep existing URL
+          avatar:      item.avatar      || null,
+          companyLogo: item.companyLogo || null,
         });
 
-        setEditingId(pendingEditId); // ✅ set AFTER form is ready
+        setEditingId(pendingEditId);
         setShowModal(true);
       } catch (err) {
         console.error(err);
         alert("Unable to load testimonial");
       } finally {
-        setPendingEditId(null); // ✅ reset so it can fire again next time
+        setPendingEditId(null);
       }
     }
 
     fetchAndOpen();
   }, [pendingEditId]);
 
-  // ✅ Step 2: DataTable — jQuery ONLY sets pendingEditId, React does everything else
   useEffect(() => {
     if (loading) return;
 
@@ -95,22 +86,20 @@ export default function TestimonialsPage() {
       }
 
       table = $("#testimonialTable").DataTable({
-        responsive:  true,
-        pageLength:  10,
+        responsive: true,
+        pageLength: 10,
         columnDefs: [{ orderable: false, targets: -1 }],
       });
 
-      // ✅ Edit — jQuery only triggers, React useEffect above does the work
       $(document)
         .off("click", ".edit-btn")
         .on("click", ".edit-btn", function (e) {
           e.preventDefault();
           e.stopPropagation();
           const id = $(this).attr("data-id");
-          if (id) setPendingEditId(id); // ✅ single setState — reliable from jQuery
+          if (id) setPendingEditId(id);
         });
 
-      // ✅ Delete
       $(document)
         .off("click", ".delete-btn")
         .on("click", ".delete-btn", function (e) {
@@ -132,14 +121,12 @@ export default function TestimonialsPage() {
     };
   }, [loading, items]);
 
-  // ✅ Create
   const openCreate = () => {
     setForm(emptyForm);
     setEditingId(null);
     setShowModal(true);
   };
 
-  // ✅ Submit
   const handleSubmit = async () => {
     try {
       if (editingId) {
@@ -157,7 +144,6 @@ export default function TestimonialsPage() {
     }
   };
 
-  // ✅ Delete
   const handleDelete = async (id) => {
     if (!confirm("Delete this testimonial?")) return;
     try {
@@ -169,7 +155,6 @@ export default function TestimonialsPage() {
     }
   };
 
-  // ✅ Close — reset everything
   const handleClose = () => {
     setShowModal(false);
     setEditingId(null);

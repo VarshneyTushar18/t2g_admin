@@ -1,25 +1,15 @@
-const BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/leads`;
+import { api } from "@/lib/api";
+
+const BASE_URL = "/api/leads";
 
 export async function getLeads() {
-  const res = await fetch(BASE_URL, { credentials: "include" });
-  if (!res.ok) throw new Error("Failed to fetch leads");
-  return res.json();
+  return api.get(BASE_URL);
 }
 
 export async function deleteLead(id) {
-  const res = await fetch(`${BASE_URL}/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error("Delete failed");
+  return api.delete(`${BASE_URL}/${id}`);
 }
 
 export async function updateLead(id, payload) {
-  const res = await fetch(`${BASE_URL}/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error("Update failed");
+  return api.put(`${BASE_URL}/${id}`, payload);
 }

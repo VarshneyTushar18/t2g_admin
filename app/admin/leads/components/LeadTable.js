@@ -54,7 +54,7 @@ export default function LeadTable({ leads, onDelete, onEdit }) {
 
         // ✅ Expand / Collapse Logic
         $("#leadsTable tbody")
-          .off("click", "td.dt-control")   // 🔥 remove old handlers
+          .off("click", "td.dt-control") // 🔥 remove old handlers
           .on("click", "td.dt-control", function () {
             const tr = $(this).closest("tr");
             const row = table.row(tr);
@@ -147,35 +147,22 @@ export default function LeadTable({ leads, onDelete, onEdit }) {
       <table id="leadsTable" className="display" style={{ width: "100%" }}>
         <thead>
           <tr>
-            <th></th> {/* Expand column */}
-            {[
-              "ID",
-              "Name",
-              "Email",
-              "Country",
-              "Phone",
-              "Message",
-              "Form Type",
-              "Source Page",
-              "Actions",
-            ].map((h) => (
-              <th
-                key={h}
-                style={{
-                  background: "#f8fafc",
-                  color: "#64748b",
-                  fontWeight: 600,
-                  fontSize: "12px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                  padding: "10px 14px",
-                  borderBottom: "2px solid #e2e8f0",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {h}
-              </th>
-            ))}
+            <th></th>
+            <>
+              {[
+                "ID",
+                "Name",
+                "Email",
+                "Country",
+                "Phone",
+                "Message",
+                "Form Type",
+                "Source Page",
+                "Actions",
+              ].map((h) => (
+                <th key={h}>{h}</th>
+              ))}
+            </>
           </tr>
         </thead>
 
@@ -185,7 +172,13 @@ export default function LeadTable({ leads, onDelete, onEdit }) {
               {/* Expand button */}
               <td style={{ cursor: "pointer", textAlign: "center" }}>▶</td>
 
-              <td style={{ padding: "10px 14px", color: "#94a3b8", fontSize: "12px" }}>
+              <td
+                style={{
+                  padding: "10px 14px",
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                }}
+              >
                 {lead.id}
               </td>
 

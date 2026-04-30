@@ -22,7 +22,7 @@ export default function AdminLayout({ children }) {
     <div className="admin-scope">
 
       {/* Sidebar */}
-      <aside className="sidebar">
+      {/* <aside className="sidebar">
         <h2 className="logo">Admin</h2>
 
         <nav>
@@ -43,7 +43,36 @@ export default function AdminLayout({ children }) {
         <Link href="/admin/login" className="logout">
           Logout
         </Link>
-      </aside>
+      </aside> */}
+
+<aside className="sidebar">
+  <div>
+    <h2 className="logo">Admin</h2>
+
+    <nav>
+      {navItems.map((item) => {
+        const active = pathname.startsWith(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`link ${active ? "active" : ""}`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  </div>
+
+  {/* 🔥 Logout Section */}
+  <div className="sidebar-footer">
+    <Link href="/admin/login" className="logout">
+      Logout
+    </Link>
+  </div>
+</aside>
+
 
       {/* Main */}
       <main className="main">

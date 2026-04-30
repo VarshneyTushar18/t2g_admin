@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
 export default function EditJobPage() {
   const router = useRouter();
   const { id } = useParams();
@@ -34,10 +32,9 @@ export default function EditJobPage() {
       try {
         if (!id) return;
 
-        const res = await fetch(
-          `${API}/api/career/admin/jobs/${id}`,   // ✅ admin route
-          { credentials: "include" }
-        );
+        const res = await fetch(`/api/career/admin/jobs/${id}`, {
+          credentials: "include",
+        });
 
         const data = await res.json();
      
@@ -73,15 +70,12 @@ export default function EditJobPage() {
     setSaving(true);
 
     try {
-      const res = await fetch(
-        `${API}/api/career/admin/jobs/${id}`,     // ✅ fixed: was missing /admin/
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(form),
-        }
-      );
+      const res = await fetch(`/api/career/admin/jobs/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(form),
+      });
 
       const data = await res.json();
 
