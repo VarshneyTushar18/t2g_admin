@@ -6,6 +6,7 @@ async function request(endpoint, options = {}) {
     credentials: "include",
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      credentials: "include",
       ...options.headers,
     },
     ...options,
