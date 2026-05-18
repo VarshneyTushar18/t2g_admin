@@ -22,7 +22,11 @@ const backendBaseUrl = () => {
 const buildBackendUrl = async (request: NextRequest, context: RouteContext) => {
   const { path } = await context.params;
   const requestUrl = new URL(request.url);
-  const backendUrl = new URL(`${backendBaseUrl()}/api/${path.join("/")}`);
+
+  // API_BASE_URL may be "http://localhost:5000" OR "https://host/api" — avoid /api/api/...
+  const base = backendBaseUrl();
+  const apiRoot = base.endsWith("/api") ? base : `${base}/api`;
+  const backendUrl = new URL(`${apiRoot}/${path.join("/")}`);
 
   backendUrl.search = requestUrl.search;
 

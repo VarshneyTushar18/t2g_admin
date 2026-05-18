@@ -1,14 +1,19 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import useLifeItems from "./hooks/useLifeItems";
 import LifeTable from "./components/LifeTable";
 import LifeModal from "./components/LifeModal";
 import {
   createLifeItem,
   updateLifeItem,
+  appendGalleryImages,
+  removeGalleryImages,
   deleteLifeItem,
+  getLifeItem,
+  parseGallery,
+  getAllLifeUploadedImages,
 } from "./services/lifeService";
-import { useState } from "react";
+import AllUploadedImagesModal from "./components/AllUploadedImagesModal";
 
 const emptyForm = {
   category: "",
@@ -18,6 +23,9 @@ const emptyForm = {
   sort_order: 0,
   is_active: true,
   banner: null,
+  galleryFiles: [],
+  existingBanner: null,
+  existingGallery: [],
 };
 
 export default function LifePage() {
@@ -25,8 +33,14 @@ export default function LifePage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadLabel, setUploadLabel] = useState("");
+  const [showAllImages, setShowAllImages] = useState(false);
+  const [allImageUrls, setAllImageUrls] = useState([]);
+  const [allImagesLoading, setAllImagesLoading] = useState(false);
+  const [allImagesError, setAllImagesError] = useState(null);
 
-  // DataTable init
   useEffect(() => {
     if (loading) return;
     let table;
@@ -48,48 +62,110 @@ export default function LifePage() {
     };
   }, [loading, items]);
 
-  const openEdit = (item) => {
-    setForm({
-      category: item.category,
-      category_title: item.category_title,
-      year: item.year,
-      description: item.description || "",
-      sort_order: item.sort_order || 0,
-      is_active: !!item.is_active,
-      banner: null,
-      galleryFiles: [],
-      existingBanner: item.banner, // shown as preview
-      existingGallery: item.gallery || [], // shown as preview
-    });
-    setEditingId(item.id);
-    setShowModal(true);
+  const openEdit = async (item) => {
+    try {
+      const res = await getLifeItem(item.id);
+      const data = res.data || item;
+      setForm({
+        category: data.category,
+        category_title: data.category_title,
+        year: data.year,
+        description: data.description || "",
+        sort_order: data.sort_order || 0,
+        is_active: !!data.is_active,
+        banner: null,
+        galleryFiles: [],
+        existingBanner: data.banner,
+        existingGallery: parseGallery(data.gallery),
+      });
+      setEditingId(data.id);
+      setShowModal(true);
+    } catch (err) {
+      alert(err.message || "Failed to load item");
+    }
   };
 
   const openCreate = () => {
-    setForm({
-      category: "",
-      category_title: "",
-      year: "",
-      description: "",
-      sort_order: 0,
-      is_active: true,
-      banner: null,
-      galleryFiles: [],
-      existingBanner: null,
-      existingGallery: [],
-    });
+    setForm({ ...emptyForm });
     setEditingId(null);
     setShowModal(true);
   };
 
-  const handleSubmit = async () => {
-    if (editingId) {
-      await updateLifeItem(editingId, form);
-    } else {
-      await createLifeItem(form);
+  const handleRemoveGalleryImage = async (url) => {
+    if (!editingId) return;
+    if (!confirm("Remove this image from the gallery?")) return;
+
+    try {
+      await removeGalleryImages(editingId, [url]);
+      setForm((prev) => ({
+        ...prev,
+        existingGallery: prev.existingGallery.filter((u) => u !== url),
+      }));
+    } catch (err) {
+      alert(err.message || "Failed to remove image");
     }
-    reload();
-    setShowModal(false);
+  };
+
+  const handleSubmit = async () => {
+    if (!form.category?.trim() || !form.category_title?.trim() || !form.year?.trim()) {
+      alert("Category, title, and year are required.");
+      return;
+    }
+
+    setSaving(true);
+    setUploadProgress(0);
+    setUploadLabel("Starting…");
+
+    const hasNewGallery = form.galleryFiles?.length > 0;
+
+    try {
+      if (editingId) {
+        setUploadLabel("Saving item details…");
+        await updateLifeItem(editingId, form, {
+          onProgress: (p) => {
+            const weight = hasNewGallery ? 0.25 : 1;
+            setUploadProgress(Math.round(p * weight * 100));
+          },
+        });
+
+        if (hasNewGallery) {
+          const n = form.galleryFiles.length;
+          setUploadLabel(`Uploading ${n} new image${n !== 1 ? "s" : ""}…`);
+          setUploadProgress(25);
+          await appendGalleryImages(editingId, form.galleryFiles, {
+            onProgress: (p) => setUploadProgress(25 + Math.round(p * 0.75)),
+          });
+        }
+      } else {
+        if (!form.banner) {
+          alert("Banner image is required.");
+          setSaving(false);
+          setUploadProgress(0);
+          setUploadLabel("");
+          return;
+        }
+        const n = form.galleryFiles?.length || 0;
+        setUploadLabel(
+          n > 0
+            ? `Uploading banner + ${n} gallery image${n !== 1 ? "s" : ""}…`
+            : "Uploading banner…",
+        );
+        await createLifeItem(form, {
+          onProgress: (p) => setUploadProgress(p),
+        });
+      }
+
+      setUploadLabel("Done!");
+      setUploadProgress(100);
+      await reload();
+      setShowModal(false);
+    } catch (err) {
+      alert(err.message || "Save failed");
+    } finally {
+      setSaving(false);
+      setUploadProgress(0);
+      setUploadLabel("");
+    }
   };
 
   const handleDelete = async (id) => {
@@ -98,11 +174,28 @@ export default function LifePage() {
     reload();
   };
 
+  const openAllUploadedImages = async () => {
+    setShowAllImages(true);
+    setAllImagesLoading(true);
+    setAllImagesError(null);
+    setAllImageUrls([]);
+    try {
+      const res = await getAllLifeUploadedImages();
+      setAllImageUrls(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setAllImagesError(err.message || "Failed to load images");
+    } finally {
+      setAllImagesLoading(false);
+    }
+  };
+
   return (
     <>
       <style>{`
         .lp { min-height:100vh; background:#f0f2f5; padding:20px; }
-        .lp-header { display:flex; justify-content:space-between; margin-bottom:20px; }
+        .lp-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+        .lp-header-actions { display:flex; gap:10px; flex-wrap:wrap; }
+        .btn-outline { background:white; color:#333; border:1px solid #ccc; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px; }
         .lp-title { font-size:26px; font-weight:800; }
         .lp-card { background:white; border-radius:12px; box-shadow:0 2px 16px rgba(0,0,0,.08); overflow:hidden; }
         .lp-card-head { padding:16px; border-bottom:1px solid #eee; font-weight:700; }
@@ -115,14 +208,20 @@ export default function LifePage() {
         .modal-box { background:white; padding:25px; border-radius:10px; width:480px; max-height:90vh; overflow-y:auto; }
         .modal-box input { width:100%; margin-bottom:10px; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; }
         .modal-box label { font-size:13px; font-weight:600; display:block; margin-bottom:4px; }
+        .btn:disabled { opacity:0.6; cursor:not-allowed; }
       `}</style>
 
       <div className="lp">
         <div className="lp-header">
           <h1 className="lp-title">Life @ Tech2Globe</h1>
-          <button className="btn-add" onClick={openCreate}>
-            + Add Item
-          </button>
+          <div className="lp-header-actions">
+            <button type="button" className="btn-outline" onClick={openAllUploadedImages}>
+              All uploaded images
+            </button>
+            <button className="btn-add" onClick={openCreate}>
+              + Add Item
+            </button>
+          </div>
         </div>
 
         <div className="lp-card">
@@ -147,6 +246,19 @@ export default function LifePage() {
         </div>
       </div>
 
+      {showAllImages && (
+        <AllUploadedImagesModal
+          urls={allImageUrls}
+          loading={allImagesLoading}
+          error={allImagesError}
+          onClose={() => {
+            setShowAllImages(false);
+            setAllImageUrls([]);
+            setAllImagesError(null);
+          }}
+        />
+      )}
+
       {showModal && (
         <LifeModal
           form={form}
@@ -154,6 +266,10 @@ export default function LifePage() {
           editingId={editingId}
           onSubmit={handleSubmit}
           onClose={() => setShowModal(false)}
+          onRemoveGalleryImage={handleRemoveGalleryImage}
+          saving={saving}
+          uploadProgress={uploadProgress}
+          uploadLabel={uploadLabel}
         />
       )}
     </>

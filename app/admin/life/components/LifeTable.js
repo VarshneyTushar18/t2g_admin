@@ -8,6 +8,7 @@ export default function LifeTable({ items, onEdit, onDelete }) {
           <th>Title</th>
           <th>Year</th>
           <th>Banner</th>
+          <th>Gallery</th>
           <th>Category Img</th>
           <th>Description</th>
           <th>Order</th>
@@ -27,6 +28,10 @@ export default function LifeTable({ items, onEdit, onDelete }) {
                 <img src={item.banner} width="80" height="55"
                   style={{ objectFit: "cover", borderRadius: "6px" }} />
               )}
+            </td>
+            <td>
+              {item.galleryCount ?? (Array.isArray(item.gallery) ? item.gallery.length : 0)}{" "}
+              photos
             </td>
             <td>
               {item.category_img && (
