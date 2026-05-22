@@ -38,14 +38,17 @@ export default function LifeModal({
           onChange={(e) => setForm({ ...form, category: e.target.value })}
         />
 
-        <label>Category Title</label>
+        <label>Section title (tab heading)</label>
         <input
-          placeholder="e.g. Campus Placement"
+          placeholder="e.g. Events Collection"
           value={form.category_title}
           onChange={(e) =>
             setForm({ ...form, category_title: e.target.value })
           }
         />
+        <p style={{ fontSize: "12px", color: "#666", margin: "-6px 0 10px" }}>
+          Same for all items in this category (shown above the year buttons).
+        </p>
 
         <label>Year</label>
         <input
@@ -54,12 +57,15 @@ export default function LifeModal({
           onChange={(e) => setForm({ ...form, year: e.target.value })}
         />
 
-        <label>Description</label>
+        <label>Event card title (shown on banner)</label>
         <input
-          placeholder="Short description"
+          placeholder="e.g. Gitex – Dubai 2019"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
+        <p style={{ fontSize: "12px", color: "#666", margin: "-6px 0 10px" }}>
+          One line per card. Include the year here (e.g. Gitex – Dubai 2019).
+        </p>
 
         <label>Sort Order</label>
         <input

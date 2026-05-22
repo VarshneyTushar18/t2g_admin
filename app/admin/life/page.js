@@ -54,7 +54,15 @@ export default function LifePage() {
       if ($.fn.dataTable.isDataTable("#lifeTable")) {
         $("#lifeTable").DataTable().destroy();
       }
-      table = $("#lifeTable").DataTable({ responsive: true, pageLength: 10 });
+      table = $("#lifeTable").DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[0, "desc"]],
+        columnDefs: [
+          { responsivePriority: 1, targets: 0 },
+          { responsivePriority: 2, targets: 10 },
+        ],
+      });
     }
     init();
     return () => {
@@ -170,8 +178,12 @@ export default function LifePage() {
 
   const handleDelete = async (id) => {
     if (!confirm("Delete this item?")) return;
-    await deleteLifeItem(id);
-    reload();
+    try {
+      await deleteLifeItem(id);
+      reload();
+    } catch (err) {
+      alert(err.message || "Delete failed");
+    }
   };
 
   const openAllUploadedImages = async () => {
@@ -205,10 +217,19 @@ export default function LifePage() {
         .btn-delete { background:#e74c3c; color:white; }
         .btn-add { background:#16a37f; color:white; padding:8px 16px; border-radius:6px; cursor:pointer; border:none; }
         .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; z-index:1000; }
-        .modal-box { background:white; padding:25px; border-radius:10px; width:480px; max-height:90vh; overflow-y:auto; }
+        .modal-box { background:white; padding:25px; border-radius:10px; width:480px; max-width:100%; max-height:90vh; overflow-y:auto; margin:0 16px; box-sizing:border-box; }
         .modal-box input { width:100%; margin-bottom:10px; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; }
         .modal-box label { font-size:13px; font-weight:600; display:block; margin-bottom:4px; }
         .btn:disabled { opacity:0.6; cursor:not-allowed; }
+        .life-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+        @media (max-width:768px) {
+          .lp { padding:12px; }
+          .lp-header { flex-direction:column; align-items:stretch; }
+          .lp-header-actions { flex-direction:column; }
+          .lp-header-actions .btn-outline,
+          .lp-header-actions .btn-add { width:100%; text-align:center; }
+          .lp-title { font-size:22px; }
+        }
       `}</style>
 
       <div className="lp">
