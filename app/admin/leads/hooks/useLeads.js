@@ -15,6 +15,8 @@ export function useLeads() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [formType, setFormType] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
@@ -36,6 +38,8 @@ export function useLeads() {
         limit,
         search: debouncedSearch,
         form_type: formType,
+        date_from: dateFrom,
+        date_to: dateTo,
       });
       setLeads(res.data || []);
       setPagination(res.pagination || DEFAULT_PAGINATION);
@@ -45,7 +49,7 @@ export function useLeads() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, formType]);
+  }, [page, limit, debouncedSearch, formType, dateFrom, dateTo]);
 
   useEffect(() => {
     loadLeads();
@@ -74,6 +78,12 @@ export function useLeads() {
     setPage(1);
   };
 
+  const changeDateRange = (from, to) => {
+    setDateFrom(from);
+    setDateTo(to);
+    setPage(1);
+  };
+
   return {
     leads,
     loading,
@@ -82,6 +92,9 @@ export function useLeads() {
     setSearch,
     formType,
     changeFormType,
+    dateFrom,
+    dateTo,
+    changeDateRange,
     page,
     limit,
     pagination,

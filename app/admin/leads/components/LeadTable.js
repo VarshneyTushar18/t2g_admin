@@ -89,7 +89,9 @@ export default function LeadTable({
                   )}
                 </td>
                 <td data-label="Source">
-                  <span className="leads-source">{lead.source_page || "—"}</span>
+                  <span className="leads-source leads-source-strong">
+                    {lead.source_page || "—"}
+                  </span>
                 </td>
                 <td data-label="Date" className="leads-date">
                   {formatDate(lead.created_at)}

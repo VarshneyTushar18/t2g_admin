@@ -387,6 +387,62 @@
   border: 1px solid #fecaca;
 }
 
+.users-alert-success {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.users-login-link {
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.users-login-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.users-login-banner code {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 10px;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+  word-break: break-all;
+}
+
+.users-reset-password {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--u-border);
+}
+
+.users-reset-password h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.users-badge-warn {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.users-btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
 .users-empty {
   text-align: center;
   padding: 32px;

@@ -47,6 +47,9 @@ export default function LeadsPage() {
     setSearch,
     formType,
     changeFormType,
+    dateFrom,
+    dateTo,
+    changeDateRange,
     page,
     limit,
     pagination,
@@ -62,7 +65,12 @@ export default function LeadsPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      await exportLeadsCsv({ search, form_type: formType });
+      await exportLeadsCsv({
+        search,
+        form_type: formType,
+        date_from: dateFrom,
+        date_to: dateTo,
+      });
     } catch (err) {
       alert(err.message);
     }
@@ -105,6 +113,32 @@ export default function LeadsPage() {
             </option>
           ))}
         </select>
+
+        <div className="leads-date-range">
+          <label htmlFor="date-from">From</label>
+          <input
+            id="date-from"
+            type="date"
+            value={dateFrom}
+            onChange={(e) => changeDateRange(e.target.value, dateTo)}
+          />
+          <label htmlFor="date-to">To</label>
+          <input
+            id="date-to"
+            type="date"
+            value={dateTo}
+            onChange={(e) => changeDateRange(dateFrom, e.target.value)}
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              type="button"
+              className="leads-btn leads-btn-ghost leads-btn-sm"
+              onClick={() => changeDateRange("", "")}
+            >
+              Clear dates
+            </button>
+          )}
+        </div>
 
         <button
           type="button"

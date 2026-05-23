@@ -2,7 +2,7 @@ import { api } from "@/lib/api";
 
 // ================= GET =================
 export async function getCaseStudies() {
-  const data = await api.get("/api/case-studies/admin");
+  const data = await api.get("/api/case-studies/admin/list");
   return data.data || [];
 }
 

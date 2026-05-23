@@ -151,6 +151,11 @@
   background: #fee2e2;
 }
 
+.leads-btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
 .leads-panel {
   background: var(--lp-surface);
   border: 1px solid var(--lp-border);
@@ -225,12 +230,40 @@
 
 .leads-source {
   display: block;
-  max-width: 120px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
   color: var(--lp-muted);
+}
+
+.leads-source-strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--lp-text);
+  letter-spacing: -0.01em;
+}
+
+.leads-date-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.leads-date-range label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lp-muted);
+}
+
+.leads-date-range input[type="date"] {
+  padding: 10px 12px;
+  border: 1px solid var(--lp-border);
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--lp-surface);
 }
 
 .leads-date {

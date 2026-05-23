@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
@@ -26,13 +26,26 @@ export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [createMatrix, setCreateMatrix] = useState(buildEmptyMatrix);
   const [togglingId, setTogglingId] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [editMatrix, setEditMatrix] = useState(buildEmptyMatrix);
+  const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const loginUrl = useMemo(() => {
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/admin/login`;
+    }
+    return (
+      process.env.NEXT_PUBLIC_ADMIN_LOGIN_URL ||
+      "https://manageadmin.tech2globe.tech/admin/login"
+    );
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -57,6 +70,7 @@ export default function UsersPage() {
   const createUser = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     const moduleAccess = moduleListFromMatrix(createMatrix);
     if (moduleAccess.length === 0) {
       setError("Enable at least one module and set permissions");
@@ -64,14 +78,20 @@ export default function UsersPage() {
     }
     setSaving(true);
     try {
-      await api.post("/api/auth/users", {
-        email,
+      const res = await api.post("/api/auth/users", {
+        email: email.trim(),
         password,
+        fullName: fullName.trim() || undefined,
         moduleAccess,
       });
       setEmail("");
       setPassword("");
+      setFullName("");
       setCreateMatrix(buildEmptyMatrix());
+      setSuccess(
+        res.message ||
+          `User created. They can log in at ${loginUrl} with the email and password you set.`,
+      );
       loadUsers();
     } catch (err) {
       setError(err.message);
@@ -97,10 +117,10 @@ export default function UsersPage() {
 
   const openEdit = (u) => {
     setEditingUser(u);
-    setEditMatrix(
-      matrixFromModuleList(u.moduleAccess || u.modules || []),
-    );
+    setEditMatrix(matrixFromModuleList(u.moduleAccess || u.modules || []));
+    setNewPassword("");
     setError("");
+    setSuccess("");
   };
 
   const saveEdit = async () => {
@@ -117,7 +137,28 @@ export default function UsersPage() {
       });
       setEditingUser(null);
       setEditMatrix(buildEmptyMatrix());
+      setSuccess("Permissions updated.");
       loadUsers();
+    } catch (err) {
+      setError(err.message);
+    }
+    setSaving(false);
+  };
+
+  const savePassword = async () => {
+    if (!editingUser) return;
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await api.patch(`/api/auth/users/${editingUser.id}/password`, {
+        newPassword,
+      });
+      setSuccess(`Password updated for ${editingUser.email}`);
+      setNewPassword("");
     } catch (err) {
       setError(err.message);
     }
@@ -156,10 +197,11 @@ export default function UsersPage() {
         <div>
           <h1>Manage users</h1>
           <p>
-            Grant module access with <strong>View</strong>,{" "}
-            <strong>Add / Edit</strong>, or <strong>Delete</strong> — or use{" "}
-            <strong>View only</strong> per module. Toggle suspends login;
-            Revoke deletes the account.
+            Staff log in at{" "}
+            <a href={loginUrl} className="users-login-link" target="_blank" rel="noreferrer">
+              {loginUrl.replace(/^https?:\/\//, "")}
+            </a>
+            . Grant modules below; toggle suspends access.
           </p>
         </div>
         <div className="users-saas-actions">
@@ -169,7 +211,20 @@ export default function UsersPage() {
         </div>
       </header>
 
+      <div className="users-login-banner">
+        <strong>Team login URL</strong>
+        <code>{loginUrl}</code>
+        <button
+          type="button"
+          className="users-btn users-btn-ghost users-btn-sm"
+          onClick={() => navigator.clipboard?.writeText(loginUrl)}
+        >
+          Copy link
+        </button>
+      </div>
+
       {error && <div className="users-alert users-alert-error">{error}</div>}
+      {success && <div className="users-alert users-alert-success">{success}</div>}
 
       <div className="users-grid">
         <section className="users-panel">
@@ -177,7 +232,7 @@ export default function UsersPage() {
           <p className="panel-sub">
             {editingUser
               ? editingUser.email
-              : "Create an account and define module permissions"}
+              : "Create an account — share the login URL and password with them"}
           </p>
 
           {!editingUser && (
@@ -191,6 +246,16 @@ export default function UsersPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                />
+              </div>
+              <div className="users-field">
+                <label htmlFor="new-name">Full name (optional)</label>
+                <input
+                  id="new-name"
+                  type="text"
+                  placeholder="HR User"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                 />
               </div>
               <div className="users-field">
@@ -248,6 +313,26 @@ export default function UsersPage() {
                   Cancel
                 </button>
               </div>
+
+              <div className="users-reset-password">
+                <h3>Change password</h3>
+                <p className="panel-sub">Set a new password for this user</p>
+                <PasswordInput
+                  placeholder="New password (min 6 chars)"
+                  value={newPassword}
+                  onChange={setNewPassword}
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  className="users-btn users-btn-primary"
+                  style={{ marginTop: 10 }}
+                  onClick={savePassword}
+                  disabled={saving}
+                >
+                  {saving ? "Saving…" : "Update password"}
+                </button>
+              </div>
             </>
           )}
         </section>
@@ -277,6 +362,11 @@ export default function UsersPage() {
                         <span className="users-badge users-badge-role">
                           {u.role}
                         </span>
+                        {!active && (
+                          <span className="users-badge users-badge-warn">
+                            Suspended
+                          </span>
+                        )}
                       </div>
                       <div className="users-list-badges">
                         <span className="users-badge">{summary}</span>
@@ -294,13 +384,13 @@ export default function UsersPage() {
                         className={`users-icon-btn${isEditing ? " primary" : ""}`}
                         onClick={() => openEdit(u)}
                       >
-                        {isEditing ? "Editing…" : "Permissions"}
+                        {isEditing ? "Editing…" : "Edit"}
                       </button>
                       <button
                         type="button"
                         className="users-icon-btn"
-                        style={{ color: "#dc2626", borderColor: "#fecaca" }}
                         onClick={() => revokeUser(u.id, u.email)}
+                        style={{ color: "#dc2626", borderColor: "#fecaca" }}
                       >
                         Revoke
                       </button>
@@ -314,10 +404,7 @@ export default function UsersPage() {
       </div>
 
       <style>{`
-        .users-loading {
-          color: #64748b;
-          padding: 24px;
-        }
+        .users-loading { color: #64748b; padding: 24px; }
       `}</style>
     </div>
   );
