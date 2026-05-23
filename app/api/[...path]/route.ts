@@ -41,6 +41,7 @@ const proxy = async (request: NextRequest, context: RouteContext) => {
     headers.delete("host");
     headers.delete("content-length");
     headers.delete("connection");
+    headers.delete("expect");
 
     const method = request.method;
     const hasBody = method !== "GET" && method !== "HEAD";

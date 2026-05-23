@@ -1,280 +1,168 @@
 "use client";
 
-import { useEffect } from "react";
+const FORM_TYPES = [
+  { value: "", label: "All form types" },
+  { value: "contact_page", label: "Contact page" },
+  { value: "service_form", label: "Service form" },
+  { value: "career", label: "Career" },
+];
 
-export default function LeadTable({ leads, onDelete, onEdit }) {
-  useEffect(() => {
-    if (!leads || leads.length === 0) return;
+function formatDate(value) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-    let table;
-    let timeout;
+export { FORM_TYPES };
 
-    const init = async () => {
-      const $ = (await import("jquery")).default;
-      if (typeof window !== "undefined") {
-        window.jQuery = $;
-        window.$ = $;
-      }
-
-      await import("datatables.net-dt");
-
-      timeout = setTimeout(() => {
-        if ($.fn.DataTable.isDataTable("#leadsTable")) {
-          $("#leadsTable").DataTable().destroy();
-        }
-
-        table = $("#leadsTable").DataTable({
-          pageLength: 10,
-          autoWidth: false,
-          responsive: false,
-          order: [[1, "desc"]],
-
-          columnDefs: [
-            {
-              targets: 0,
-              className: "dt-control",
-              orderable: false,
-              defaultContent: "▶",
-            },
-          ],
-
-          createdRow: function (row) {
-            row.style.borderBottom = "1px solid #e2e8f0";
-          },
-
-          initComplete: function () {
-            const wrapper = document.getElementById("leadsTable_wrapper");
-            if (wrapper) {
-              wrapper.style.fontFamily = "Inter, Arial, sans-serif";
-              wrapper.style.fontSize = "13.5px";
-              wrapper.style.color = "#1e293b";
-            }
-          },
-        });
-
-        // ✅ Expand / Collapse Logic
-        $("#leadsTable tbody")
-          .off("click", "td.dt-control") // 🔥 remove old handlers
-          .on("click", "td.dt-control", function () {
-            const tr = $(this).closest("tr");
-            const row = table.row(tr);
-
-            if (row.child.isShown()) {
-              row.child.hide();
-              tr.removeClass("shown");
-              $(this).text("▶");
-            } else {
-              const rowData = row.data();
-              const lead = {
-                id: rowData[1],
-                name: rowData[2],
-                email: rowData[3],
-                country: rowData[4],
-                phone: rowData[5],
-                message: rowData[6],
-                form_type: rowData[7],
-                source_page: rowData[8],
-              };
-
-              row.child(formatDetails(lead)).show();
-              tr.addClass("shown");
-              $(this).text("▼");
-            }
-          });
-      }, 50);
-    };
-
-    init();
-
-    return () => {
-      clearTimeout(timeout);
-      if (table) table.destroy();
-    };
-  }, [leads]);
-
-  // ✅ Expanded Row UI
-  function formatDetails(lead) {
-    return `
-    <div style="
-      padding:16px;
-      background:#f8fafc;
-      border:1px solid #e2e8f0;
-      border-radius:8px;
-      margin:10px 0;
-      font-size:13px;
-    ">
-      <div style="display:flex;flex-direction:column;gap:8px;">
-
-        <div><strong>ID:</strong> ${lead.id}</div>
-        <div><strong>Name:</strong> ${lead.name}</div>
-        <div><strong>Email:</strong> ${lead.email}</div>
-        <div><strong>Country:</strong> ${lead.country}</div>
-        <div><strong>Phone:</strong> ${lead.phone}</div>
-
-        <div>
-          <strong>Message:</strong>
-          <div style="
-            margin-top:4px;
-            background:#fff;
-            padding:10px;
-            border-radius:6px;
-            border:1px solid #e2e8f0;
-            word-break:break-word;
-          ">
-            ${lead.message}
-          </div>
-        </div>
-
-        <div><strong>Form Type:</strong> ${lead.form_type}</div>
-        <div><strong>Source:</strong> ${lead.source_page}</div>
-
+export default function LeadTable({
+  leads,
+  loading,
+  onView,
+  onDelete,
+  canDelete,
+}) {
+  if (loading) {
+    return (
+      <div className="leads-table-skeleton">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="leads-skeleton-row" />
+        ))}
       </div>
-    </div>
-  `;
+    );
+  }
+
+  if (!leads.length) {
+    return (
+      <div className="leads-empty">
+        <p>No leads found</p>
+        <span>Try adjusting search or filters</span>
+      </div>
+    );
   }
 
   return (
-    <div
-      style={{
-        width: "100%",
-        overflowX: "auto",
-        background: "#fff",
-        borderRadius: "10px",
-        padding: "24px",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-      }}
-    >
-      <table id="leadsTable" className="display" style={{ width: "100%" }}>
-        <thead>
-          <tr>
-            <th></th>
-            <>
-              {[
-                "ID",
-                "Name",
-                "Email",
-                "Country",
-                "Phone",
-                "Message",
-                "Form Type",
-                "Source Page",
-                "Actions",
-              ].map((h) => (
-                <th key={h}>{h}</th>
-              ))}
-            </>
-          </tr>
-        </thead>
+    <>
+      <div className="leads-table-wrap">
+        <table className="leads-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Country</th>
+              <th>Phone</th>
+              <th>Message</th>
+              <th>Form</th>
+              <th>Source</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leads.map((lead) => (
+              <tr key={lead.id}>
+                <td data-label="Name">
+                  <span className="leads-name">{lead.name}</span>
+                </td>
+                <td data-label="Email">
+                  <a className="leads-email" href={`mailto:${lead.email}`}>
+                    {lead.email}
+                  </a>
+                </td>
+                <td data-label="Country">{lead.country || "—"}</td>
+                <td data-label="Phone">{lead.phone || "—"}</td>
+                <td data-label="Message">
+                  <span className="leads-msg-preview" title={lead.message}>
+                    {lead.message || "—"}
+                  </span>
+                </td>
+                <td data-label="Form">
+                  {lead.form_type ? (
+                    <span className="leads-pill">{lead.form_type}</span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td data-label="Source">
+                  <span className="leads-source">{lead.source_page || "—"}</span>
+                </td>
+                <td data-label="Date" className="leads-date">
+                  {formatDate(lead.created_at)}
+                </td>
+                <td data-label="Actions">
+                  <div className="leads-row-actions">
+                    <button
+                      type="button"
+                      className="leads-btn leads-btn-sm leads-btn-view"
+                      onClick={() => onView(lead)}
+                    >
+                      View
+                    </button>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="leads-btn leads-btn-sm leads-btn-danger"
+                        onClick={() => {
+                          if (confirm("Delete this lead permanently?")) {
+                            onDelete(lead.id);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        <tbody>
-          {leads.map((lead) => (
-            <tr key={lead.id} data-row={JSON.stringify(lead)}>
-              {/* Expand button */}
-              <td style={{ cursor: "pointer", textAlign: "center" }}>▶</td>
-
-              <td
-                style={{
-                  padding: "10px 14px",
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                }}
+      <div className="leads-mobile-cards">
+        {leads.map((lead) => (
+          <article key={lead.id} className="leads-mobile-card">
+            <div className="leads-mobile-card-top">
+              <strong>{lead.name}</strong>
+              {lead.form_type && <span className="leads-pill">{lead.form_type}</span>}
+            </div>
+            <a className="leads-email" href={`mailto:${lead.email}`}>
+              {lead.email}
+            </a>
+            <p className="leads-mobile-meta">
+              {[lead.country, lead.phone].filter(Boolean).join(" · ") || "—"}
+            </p>
+            {lead.message && (
+              <p className="leads-mobile-message">{lead.message}</p>
+            )}
+            <div className="leads-row-actions">
+              <button
+                type="button"
+                className="leads-btn leads-btn-sm leads-btn-view"
+                onClick={() => onView(lead)}
               >
-                {lead.id}
-              </td>
-
-              <td style={{ padding: "10px 14px", fontWeight: 500 }}>
-                {lead.name}
-              </td>
-
-              <td style={{ padding: "10px 14px", color: "#3b82f6" }}>
-                {lead.email}
-              </td>
-
-              <td style={{ padding: "10px 14px" }}>{lead.country}</td>
-
-              <td style={{ padding: "10px 14px" }}>{lead.phone}</td>
-
-              <td
-                style={{
-                  padding: "10px 14px",
-                  maxWidth: "160px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {lead.message}
-              </td>
-
-              <td style={{ padding: "10px 14px" }}>
-                <span
-                  style={{
-                    background: "#eff6ff",
-                    color: "#3b82f6",
-                    padding: "2px 8px",
-                    borderRadius: "20px",
-                    fontSize: "11.5px",
-                    fontWeight: 500,
-                  }}
-                >
-                  {lead.form_type}
-                </span>
-              </td>
-
-              <td
-                style={{
-                  padding: "10px 14px",
-                  color: "#64748b",
-                  fontSize: "12.5px",
-                }}
-              >
-                {lead.source_page}
-              </td>
-
-              <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                View
+              </button>
+              {canDelete && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit(lead);
-                  }}
-                  style={{
-                    background: "#3b82f6",
-                    color: "#fff",
-                    border: "none",
-                    padding: "5px 12px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    fontSize: "12.5px",
-                    fontWeight: 500,
-                    marginRight: "6px",
-                  }}
-                >
-                  Edit
-                </button>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  type="button"
+                  className="leads-btn leads-btn-sm leads-btn-danger"
+                  onClick={() => {
                     if (confirm("Delete this lead?")) onDelete(lead.id);
-                  }}
-                  style={{
-                    background: "#ef4444",
-                    color: "#fff",
-                    border: "none",
-                    padding: "5px 12px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    fontSize: "12.5px",
-                    fontWeight: 500,
                   }}
                 >
                   Delete
                 </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+    </>
   );
 }

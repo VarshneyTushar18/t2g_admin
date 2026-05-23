@@ -36,8 +36,9 @@ export default function SubcategoryTable({ items, categories, onEdit, onDelete }
                 <td>${catMap[item.category_id] ?? item.category_id ?? ""}</td>
                 <td>${item.name ?? ""}</td>
                 <td data-id="${item.id}">
-                  <button class="btn btn-edit dt-edit">Edit</button>
-                  <button class="btn btn-delete dt-del">Delete</button>
+                  ${onEdit ? '<button class="btn btn-edit dt-edit">Edit</button>' : ""}
+                  ${onDelete ? '<button class="btn btn-delete dt-del">Delete</button>' : ""}
+                  ${!onEdit && !onDelete ? "—" : ""}
                 </td>
               </tr>
             `).join("")}
@@ -50,8 +51,8 @@ export default function SubcategoryTable({ items, categories, onEdit, onDelete }
                 const id = Number(td.dataset.id);
                 const row = items.find((i) => i.id === id);
                 if (!row) return;
-                if (e.target.classList.contains("dt-edit")) onEdit(row);
-                if (e.target.classList.contains("dt-del")) onDelete(id);
+                if (e.target.classList.contains("dt-edit") && onEdit) onEdit(row);
+                if (e.target.classList.contains("dt-del") && onDelete) onDelete(id);
             });
 
             dtRef.current = $(wrapRef.current.querySelector("table")).DataTable({

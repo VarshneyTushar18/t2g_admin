@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { api } from "@/lib/api";
+import { getPostLoginPath } from "@/lib/adminModules";
+import PasswordInput from "../components/PasswordInput";
+import "../admin-mobile.css";
 
 
 export default function LoginPage() {
@@ -11,7 +14,6 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -21,10 +23,13 @@ export default function LoginPage() {
   setLoading(true);
 
   try {
-    await api.post("/api/auth/login", { email, password });
-    router.push("/admin/leads");
+    const data = await api.post("/api/auth/login", { email, password });
+    const user = data.user;
+    const path = user ? getPostLoginPath(user) : "/admin";
+    router.push(path);
   } catch (err) {
     setError(err.message);
+  } finally {
     setLoading(false);
   }
 };
@@ -75,7 +80,7 @@ export default function LoginPage() {
           margin-bottom: 16px;
         }
 
-        input {
+        .input-group input {
           width: 100%;
           padding: 12px 14px;
           border-radius: 10px;
@@ -84,25 +89,12 @@ export default function LoginPage() {
           color: #fff;
           font-size: 14px;
           transition: border 0.2s;
+          box-sizing: border-box;
         }
 
-        input:focus {
+        .input-group input:focus {
           outline: none;
           border-color: #6b52f5;
-        }
-
-        .toggle {
-          position: absolute;
-          right: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          cursor: pointer;
-          color: #9ca3af;
-          font-size: 13px;
-        }
-
-        .toggle:hover {
-          color: #fff;
         }
 
         .error {
@@ -127,6 +119,24 @@ export default function LoginPage() {
           opacity: 0.6;
           cursor: not-allowed;
         }
+        @media (max-width: 480px) {
+          .container {
+            padding: 16px;
+            align-items: flex-start;
+            padding-top: max(24px, env(safe-area-inset-top));
+          }
+          .card {
+            padding: 24px 20px;
+            border-radius: 14px;
+            margin-top: 8px;
+          }
+          .logo img {
+            max-width: 100%;
+            height: auto;
+          }
+          h1 { font-size: 1.35rem; }
+          .btn { min-height: 48px; font-size: 15px; }
+        }
       `}</style>
 
       <div className="container">
@@ -137,6 +147,7 @@ export default function LoginPage() {
               alt="Logo"
               width={180}
               height={50}
+              style={{ width: "100%", maxWidth: 180, height: "auto" }}
             />
           </div>
 
@@ -157,19 +168,13 @@ export default function LoginPage() {
             </div>
 
             <div className="input-group">
-              <input
-                type={showPass ? "text" : "password"}
+              <PasswordInput
+                variant="dark"
                 placeholder="Password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={setPassword}
                 required
               />
-              <span
-                className="toggle"
-                onClick={() => setShowPass((v) => !v)}
-              >
-                {showPass ? "Hide" : "Show"}
-              </span>
             </div>
 
             <button className="btn" disabled={loading}>

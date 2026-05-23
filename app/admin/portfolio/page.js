@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import ReadOnlyBanner from "../components/ReadOnlyBanner";
 import { useCategories, useSubcategories, useProjects } from "./hooks/usePortfolio";
 import CategoryTable from "./components/CategoryTable";
 import SubcategoryTable from "./components/SubcategoryTable";
@@ -25,6 +27,7 @@ const emptyProjectForm = {
 };
 
 export default function PortfolioPage() {
+  const { canAdd, canEdit, canDelete } = useAuth();
   const [tab, setTab] = useState("categories");
 
   // ── Categories state ───────────────────────────────────────
@@ -231,12 +234,14 @@ export default function PortfolioPage() {
       `}</style>
 
       <div className="pp">
-        {/* Header */}
+        <ReadOnlyBanner moduleKey="portfolio" />
         <div className="pp-header">
           <h1 className="pp-title">Portfolio Manager</h1>
-          <button className="btn-add" onClick={addHandlers[tab]}>
-            {addLabels[tab]}
-          </button>
+          {canAdd("portfolio") && (
+            <button className="btn-add" type="button" onClick={addHandlers[tab]}>
+              {addLabels[tab]}
+            </button>
+          )}
         </div>
 
         {/* Tabs */}
@@ -264,8 +269,8 @@ export default function PortfolioPage() {
               {!catLoading && !catError && (
                 <CategoryTable
                   items={categories}
-                  onEdit={openCatEdit}
-                  onDelete={handleCatDelete}
+                  onEdit={canEdit("portfolio") ? openCatEdit : undefined}
+                  onDelete={canDelete("portfolio") ? handleCatDelete : undefined}
                 />
               )}
             </div>
@@ -291,8 +296,8 @@ export default function PortfolioPage() {
                 <SubcategoryTable
                   items={subcategories}
                   categories={categories}
-                  onEdit={openSubEdit}
-                  onDelete={handleSubDelete}
+                  onEdit={canEdit("portfolio") ? openSubEdit : undefined}
+                  onDelete={canDelete("portfolio") ? handleSubDelete : undefined}
                 />
               )}
             </div>
@@ -326,8 +331,8 @@ export default function PortfolioPage() {
               {!projLoading && !projError && (
                 <ProjectTable
                   items={projects}
-                  onEdit={openProjEdit}
-                  onDelete={handleProjDelete}
+                  onEdit={canEdit("portfolio") ? openProjEdit : undefined}
+                  onDelete={canDelete("portfolio") ? handleProjDelete : undefined}
                 />
               )}
             </div>
