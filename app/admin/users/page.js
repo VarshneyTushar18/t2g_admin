@@ -14,6 +14,7 @@ import {
   matrixFromModuleList,
   moduleListFromMatrix,
 } from "@/lib/modulePermissions";
+import { adminLoginUrl, teamLoginUrl } from "@/lib/authUrls";
 import "../admin-users.css";
 
 function isUserActive(u) {
@@ -37,14 +38,18 @@ export default function UsersPage() {
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const loginUrl = useMemo(() => {
+  const teamLoginLink = useMemo(() => {
     if (typeof window !== "undefined") {
-      return `${window.location.origin}/admin/login`;
+      return teamLoginUrl(window.location.origin);
     }
-    return (
-      process.env.NEXT_PUBLIC_ADMIN_LOGIN_URL ||
-      "https://manageadmin.tech2globe.tech/admin/login"
-    );
+    return teamLoginUrl();
+  }, []);
+
+  const adminLoginLink = useMemo(() => {
+    if (typeof window !== "undefined") {
+      return adminLoginUrl(window.location.origin);
+    }
+    return adminLoginUrl();
   }, []);
 
   useEffect(() => {
@@ -90,7 +95,7 @@ export default function UsersPage() {
       setCreateMatrix(buildEmptyMatrix());
       setSuccess(
         res.message ||
-          `User created. They can log in at ${loginUrl} with the email and password you set.`,
+          `User created. They can log in at ${teamLoginLink} with the email and password you set.`,
       );
       loadUsers();
     } catch (err) {
@@ -197,11 +202,11 @@ export default function UsersPage() {
         <div>
           <h1>Manage users</h1>
           <p>
-            Staff log in at{" "}
-            <a href={loginUrl} className="users-login-link" target="_blank" rel="noreferrer">
-              {loginUrl.replace(/^https?:\/\//, "")}
+            Share the team login URL with staff (not the admin login). Super admins use{" "}
+            <a href={adminLoginLink} className="users-login-link" target="_blank" rel="noreferrer">
+              {adminLoginLink.replace(/^https?:\/\//, "")}
             </a>
-            . Grant modules below; toggle suspends access.
+            .
           </p>
         </div>
         <div className="users-saas-actions">
@@ -212,16 +217,22 @@ export default function UsersPage() {
       </header>
 
       <div className="users-login-banner">
-        <strong>Team login URL</strong>
-        <code>{loginUrl}</code>
+        <div>
+          <strong>Team login URL</strong> — send this to HR, marketing, etc.
+          <code>{teamLoginLink}</code>
+        </div>
         <button
           type="button"
           className="users-btn users-btn-ghost users-btn-sm"
-          onClick={() => navigator.clipboard?.writeText(loginUrl)}
+          onClick={() => navigator.clipboard?.writeText(teamLoginLink)}
         >
-          Copy link
+          Copy team link
         </button>
       </div>
+      <p className="users-login-hint">
+        Your super-admin login:{" "}
+        <a href={adminLoginLink}>{adminLoginLink.replace(/^https?:\/\//, "")}</a>
+      </p>
 
       {error && <div className="users-alert users-alert-error">{error}</div>}
       {success && <div className="users-alert users-alert-success">{success}</div>}

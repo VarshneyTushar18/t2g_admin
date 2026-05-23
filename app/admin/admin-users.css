@@ -411,15 +411,32 @@
   font-size: 14px;
 }
 
-.users-login-banner code {
+.users-login-banner > div {
   flex: 1;
   min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.users-login-banner code {
+  display: block;
   padding: 6px 10px;
   background: #fff;
   border-radius: 8px;
   font-size: 13px;
   border: 1px solid #e2e8f0;
   word-break: break-all;
+}
+
+.users-login-hint {
+  margin: -8px 0 20px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.users-login-hint a {
+  color: #4f46e5;
 }
 
 .users-reset-password {

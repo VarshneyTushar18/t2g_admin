@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { canAccessPath, getPostLoginPath } from "@/lib/adminModules";
+import { ADMIN_LOGIN_PATH, TEAM_LOGIN_PATH, loginPathForRole } from "@/lib/authUrls";
 import { usePermissions } from "./usePermissions";
 
 const AuthContext = createContext(null);
@@ -13,7 +14,8 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
-  const isLoginPage = pathname === "/admin/login";
+  const isLoginPage =
+    pathname === ADMIN_LOGIN_PATH || pathname === TEAM_LOGIN_PATH;
 
   const refreshUser = useCallback(async () => {
     try {
@@ -39,7 +41,7 @@ export function AuthProvider({ children }) {
       if (cancelled) return;
 
       if (!u) {
-        router.replace("/admin/login");
+        router.replace(TEAM_LOGIN_PATH);
       } else if (!canAccessPath(pathname, u)) {
         router.replace(getPostLoginPath(u));
       }
@@ -57,8 +59,9 @@ export function AuthProvider({ children }) {
     } catch {
       /* ignore */
     }
+    const role = user?.role;
     setUser(null);
-    router.replace("/admin/login");
+    router.replace(loginPathForRole(role));
   };
 
   const perms = usePermissions(user);
