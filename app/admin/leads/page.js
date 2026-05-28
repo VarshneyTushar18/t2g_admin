@@ -9,6 +9,12 @@ import { exportLeadsCsv } from "./services/leadService";
 import ReadOnlyBanner from "../components/ReadOnlyBanner";
 import "./leads.css";
 
+const SOURCE_SITE_FILTERS = [
+  { value: "", label: "All sources" },
+  { value: "t2gca", label: "T2G CA" },
+  { value: "t2g", label: "T2G Original" },
+];
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -47,6 +53,8 @@ export default function LeadsPage() {
     setSearch,
     formType,
     changeFormType,
+    sourceSite,
+    changeSourceSite,
     dateFrom,
     dateTo,
     changeDateRange,
@@ -68,6 +76,7 @@ export default function LeadsPage() {
       await exportLeadsCsv({
         search,
         form_type: formType,
+        source_site: sourceSite,
         date_from: dateFrom,
         date_to: dateTo,
       });
@@ -109,6 +118,19 @@ export default function LeadsPage() {
         >
           {FORM_TYPES.map((opt) => (
             <option key={opt.value || "all"} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="leads-select"
+          value={sourceSite}
+          onChange={(e) => changeSourceSite(e.target.value)}
+          aria-label="Filter by source site"
+        >
+          {SOURCE_SITE_FILTERS.map((opt) => (
+            <option key={opt.value || "all-source"} value={opt.value}>
               {opt.label}
             </option>
           ))}

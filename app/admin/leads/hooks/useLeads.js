@@ -15,6 +15,7 @@ export function useLeads() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [formType, setFormType] = useState("");
+  const [sourceSite, setSourceSite] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
@@ -38,6 +39,7 @@ export function useLeads() {
         limit,
         search: debouncedSearch,
         form_type: formType,
+        source_site: sourceSite,
         date_from: dateFrom,
         date_to: dateTo,
       });
@@ -49,7 +51,7 @@ export function useLeads() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, formType, dateFrom, dateTo]);
+  }, [page, limit, debouncedSearch, formType, sourceSite, dateFrom, dateTo]);
 
   useEffect(() => {
     loadLeads();
@@ -78,6 +80,11 @@ export function useLeads() {
     setPage(1);
   };
 
+  const changeSourceSite = (value) => {
+    setSourceSite(value);
+    setPage(1);
+  };
+
   const changeDateRange = (from, to) => {
     setDateFrom(from);
     setDateTo(to);
@@ -92,6 +99,8 @@ export function useLeads() {
     setSearch,
     formType,
     changeFormType,
+    sourceSite,
+    changeSourceSite,
     dateFrom,
     dateTo,
     changeDateRange,

@@ -1,5 +1,7 @@
 "use client";
 
+import { sourceSiteLabel } from "./LeadTable";
+
 export default function LeadDetailModal({ lead, onClose }) {
   if (!lead) return null;
 
@@ -38,6 +40,10 @@ export default function LeadDetailModal({ lead, onClose }) {
               <dd>
                 <span className="leads-pill">{lead.form_type || "—"}</span>
               </dd>
+            </div>
+            <div>
+              <dt>Source site</dt>
+              <dd>{sourceSiteLabel(lead.source_site)}</dd>
             </div>
             <div>
               <dt>Source page</dt>

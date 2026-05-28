@@ -7,6 +7,14 @@ const FORM_TYPES = [
   { value: "career", label: "Career" },
 ];
 
+const SOURCE_SITE_LABELS = {
+  t2gca: "T2G CA",
+  t2g: "T2G Original",
+  t2g_original: "T2G Original",
+  tech2globeca: "T2G CA",
+  tech2globe: "T2G Original",
+};
+
 function formatDate(value) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString(undefined, {
@@ -19,6 +27,11 @@ function formatDate(value) {
 }
 
 export { FORM_TYPES };
+
+export function sourceSiteLabel(value) {
+  if (!value) return "—";
+  return SOURCE_SITE_LABELS[value] || value;
+}
 
 export default function LeadTable({
   leads,
@@ -89,9 +102,16 @@ export default function LeadTable({
                   )}
                 </td>
                 <td data-label="Source">
-                  <span className="leads-source leads-source-strong">
-                    {lead.source_page || "—"}
-                  </span>
+                  <div>
+                    <span className="leads-source leads-source-strong">
+                      {sourceSiteLabel(lead.source_site)}
+                    </span>
+                    {lead.source_page ? (
+                      <div style={{ marginTop: 4, color: "#64748b", fontSize: 12 }}>
+                        {lead.source_page}
+                      </div>
+                    ) : null}
+                  </div>
                 </td>
                 <td data-label="Date" className="leads-date">
                   {formatDate(lead.created_at)}

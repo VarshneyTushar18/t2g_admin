@@ -7,6 +7,7 @@ export async function getLeads({
   limit = 10,
   search = "",
   form_type = "",
+  source_site = "",
   date_from = "",
   date_to = "",
 } = {}) {
@@ -15,6 +16,7 @@ export async function getLeads({
   params.set("limit", String(limit));
   if (search.trim()) params.set("search", search.trim());
   if (form_type) params.set("form_type", form_type);
+  if (source_site) params.set("source_site", source_site);
   if (date_from) params.set("date_from", date_from);
   if (date_to) params.set("date_to", date_to);
   return api.get(`${BASE_URL}?${params.toString()}`);
@@ -27,12 +29,14 @@ export async function deleteLead(id) {
 export async function exportLeadsCsv({
   search = "",
   form_type = "",
+  source_site = "",
   date_from = "",
   date_to = "",
 } = {}) {
   const params = new URLSearchParams();
   if (search.trim()) params.set("search", search.trim());
   if (form_type) params.set("form_type", form_type);
+  if (source_site) params.set("source_site", source_site);
   if (date_from) params.set("date_from", date_from);
   if (date_to) params.set("date_to", date_to);
 
