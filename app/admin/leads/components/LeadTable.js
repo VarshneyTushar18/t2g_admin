@@ -19,6 +19,18 @@ const SOURCE_SITE_LABELS = {
   tech2globe: "T2G Original",
 };
 
+const FORM_TYPE_LABELS = {
+  ai_contact: "AI contact",
+  contact_page: "Contact page",
+  service_form: "Service form",
+  career: "Career",
+};
+
+function formTypeLabel(value) {
+  if (!value) return null;
+  return FORM_TYPE_LABELS[value] || value.replace(/_/g, " ");
+}
+
 function formatDate(value) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString(undefined, {
@@ -67,6 +79,17 @@ export default function LeadTable({
     <>
       <div className="leads-table-wrap">
         <table className="leads-table">
+          <colgroup>
+            <col className="leads-col-name" />
+            <col className="leads-col-email" />
+            <col className="leads-col-country" />
+            <col className="leads-col-phone" />
+            <col className="leads-col-message" />
+            <col className="leads-col-form" />
+            <col className="leads-col-source" />
+            <col className="leads-col-date" />
+            <col className="leads-col-actions" />
+          </colgroup>
           <thead>
             <tr>
               <th>Name</th>
@@ -83,41 +106,62 @@ export default function LeadTable({
           <tbody>
             {leads.map((lead) => (
               <tr key={`${lead.source_site || "lead"}-${lead.id}`}>
-                <td data-label="Name">
+                <td data-label="Name" className="leads-cell-name">
                   <span className="leads-name">{lead.name}</span>
                 </td>
-                <td data-label="Email">
-                  <a className="leads-email" href={`mailto:${lead.email}`}>
+                <td data-label="Email" className="leads-cell-email">
+                  <a
+                    className="leads-email"
+                    href={`mailto:${lead.email}`}
+                    title={lead.email}
+                  >
                     {lead.email}
                   </a>
                 </td>
-                <td data-label="Country">{lead.country || "—"}</td>
-                <td data-label="Phone">{lead.phone || "—"}</td>
-                <td data-label="Message">
+                <td data-label="Country" className="leads-cell-country">
+                  {lead.country || "—"}
+                </td>
+                <td data-label="Phone" className="leads-cell-phone">
+                  <span className="leads-phone" title={lead.phone}>
+                    {lead.phone || "—"}
+                  </span>
+                </td>
+                <td data-label="Message" className="leads-cell-message">
                   <span className="leads-msg-preview" title={lead.message}>
                     {lead.message || "—"}
                   </span>
                 </td>
-                <td data-label="Form">
+                <td data-label="Form" className="leads-cell-form">
                   {lead.form_type ? (
-                    <span className="leads-pill">{lead.form_type}</span>
+                    <span
+                      className="leads-pill"
+                      data-form={lead.form_type}
+                    >
+                      {formTypeLabel(lead.form_type)}
+                    </span>
                   ) : (
                     "—"
                   )}
                 </td>
-                <td data-label="Source">
-                  <div>
-                    <span className="leads-source leads-source-strong">
+                <td data-label="Source" className="leads-cell-source">
+                  <div className="leads-source-block">
+                    <span className="leads-source-strong">
                       {sourceSiteLabel(lead.source_site)}
                     </span>
                     {lead.source_page ? (
-                      <div style={{ marginTop: 4, color: "#64748b", fontSize: 12 }}>
+                      <a
+                        className="leads-source-page"
+                        href={lead.source_page}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={lead.source_page}
+                      >
                         {lead.source_page}
-                      </div>
+                      </a>
                     ) : null}
                   </div>
                 </td>
-                <td data-label="Date" className="leads-date">
+                <td data-label="Date" className="leads-cell-date leads-date">
                   {formatDate(lead.created_at)}
                 </td>
                 <td data-label="Actions">
@@ -155,7 +199,9 @@ export default function LeadTable({
           <article key={`${lead.source_site || "lead"}-${lead.id}`} className="leads-mobile-card">
             <div className="leads-mobile-card-top">
               <strong>{lead.name}</strong>
-              {lead.form_type && <span className="leads-pill">{lead.form_type}</span>}
+              {lead.form_type && (
+                <span className="leads-pill">{formTypeLabel(lead.form_type)}</span>
+              )}
             </div>
             <a className="leads-email" href={`mailto:${lead.email}`}>
               {lead.email}

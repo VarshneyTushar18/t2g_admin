@@ -1,6 +1,13 @@
 "use client";
 
-import { sourceSiteLabel } from "./LeadTable";
+import { sourceSiteLabel, FORM_TYPES } from "./LeadTable";
+
+function formTypeLabel(value) {
+  if (!value) return "—";
+  const found = FORM_TYPES.find((f) => f.value === value);
+  if (found?.label && found.value) return found.label;
+  return value.replace(/_/g, " ");
+}
 
 export default function LeadDetailModal({ lead, onClose }) {
   if (!lead) return null;
@@ -50,7 +57,9 @@ export default function LeadDetailModal({ lead, onClose }) {
             <div>
               <dt>Form type</dt>
               <dd>
-                <span className="leads-pill">{lead.form_type || "—"}</span>
+                <span className="leads-pill" data-form={lead.form_type}>
+                  {formTypeLabel(lead.form_type)}
+                </span>
               </dd>
             </div>
             <div>
