@@ -42,6 +42,22 @@ const leadsBackendBaseUrl = () => {
   return url.replace(/\/$/, "");
 };
 
+const aiLeadsBackendBaseUrl = () => {
+  const url =
+    process.env.AI_LEADS_API_BASE_URL ||
+    process.env.T2G_AI_API_BASE_URL ||
+    process.env.API_BASE_URL;
+  if (!url) {
+    throw new Error(
+      "AI_LEADS_API_BASE_URL (or T2G_AI_API_BASE_URL / API_BASE_URL) is not configured"
+    );
+  }
+  return url.replace(/\/$/, "");
+};
+
+const adminInternalApiKey = () =>
+  process.env.ADMIN_INTERNAL_API_KEY?.trim() || "";
+
 const pickBackendBase = (path: string[]) => {
   // /api/auth/* -> auth backend
   if (path[0] === "auth") {
@@ -90,19 +106,49 @@ const normalizeSourceSite = (value: unknown, fallback: string) => {
   if (!source) return fallback;
   if (source === "tech2globeca") return "t2gca";
   if (source === "tech2globe" || source === "t2g_original") return "t2g";
+  if (
+    source === "t2g_ai" ||
+    source === "t2g-ai" ||
+    source === "tech2globe_ai" ||
+    source === "ai"
+  ) {
+    return "t2gai";
+  }
   return source;
 };
+
+type LeadSource = "t2g" | "t2gca" | "t2gai";
+
+const leadSourceBaseUrl = (source: LeadSource) => {
+  if (source === "t2gca") return leadsBackendBaseUrl();
+  if (source === "t2gai") return aiLeadsBackendBaseUrl();
+  return authBackendBaseUrl();
+};
+
+const parseCompositeLeadId = (rawId: string) => {
+  const match = String(rawId).match(/^(t2g|t2gca|t2gai)-(\d+)$/i);
+  if (!match) return null;
+  return {
+    source: normalizeSourceSite(match[1], "") as LeadSource,
+    numericId: match[2],
+  };
+};
+
+const toCompositeLeadId = (source: LeadSource, id: unknown) =>
+  `${source}-${String(id)}`;
 
 const fetchLeadsFromBackend = async ({
   base,
   requestUrl,
   headers,
   sourceFallback,
+  useInternalKey = false,
 }: {
   base: string;
   requestUrl: URL;
   headers: Headers;
-  sourceFallback: string;
+  sourceFallback: LeadSource;
+  useInternalKey?: boolean;
 }) => {
   const url = withApiRoot(base, "leads");
   const params = new URLSearchParams(requestUrl.search);
@@ -111,9 +157,15 @@ const fetchLeadsFromBackend = async ({
   params.delete("source_site");
   url.search = params.toString();
 
+  const forwardHeaders = new Headers(headers);
+  const internalKey = adminInternalApiKey();
+  if (useInternalKey && internalKey) {
+    forwardHeaders.set("x-admin-internal-key", internalKey);
+  }
+
   const res = await fetch(url, {
     method: "GET",
-    headers,
+    headers: forwardHeaders,
     redirect: "manual",
     cache: "no-store",
   });
@@ -125,10 +177,19 @@ const fetchLeadsFromBackend = async ({
 
   const json = await res.json();
   const rows = Array.isArray(json?.data) ? json.data : [];
-  return rows.map((row: LeadRow) => ({
-    ...row,
-    source_site: normalizeSourceSite(row.source_site, sourceFallback),
-  }));
+  return rows.map((row: LeadRow) => {
+    const source = normalizeSourceSite(row.source_site, sourceFallback) as LeadSource;
+    const numericId = row.id;
+    return {
+      ...row,
+      id: toCompositeLeadId(source, numericId),
+      source_site: source,
+      created_at:
+        (row.created_at as string | undefined) ||
+        (row.submitted_at as string | undefined) ||
+        row.created_at,
+    };
+  });
 };
 
 const handleCombinedLeadsList = async (request: NextRequest) => {
@@ -145,13 +206,14 @@ const handleCombinedLeadsList = async (request: NextRequest) => {
   );
 
   // If a specific source is selected, fetch only that backend.
-  if (sourceSite === "t2gca" || sourceSite === "t2g") {
-    const base = sourceSite === "t2gca" ? leadsBackendBaseUrl() : authBackendBaseUrl();
+  if (sourceSite === "t2gca" || sourceSite === "t2g" || sourceSite === "t2gai") {
+    const base = leadSourceBaseUrl(sourceSite as LeadSource);
     const rows = await fetchLeadsFromBackend({
       base,
       requestUrl,
       headers,
-      sourceFallback: sourceSite,
+      sourceFallback: sourceSite as LeadSource,
+      useInternalKey: sourceSite === "t2gai",
     });
 
     const total = rows.length;
@@ -169,8 +231,8 @@ const handleCombinedLeadsList = async (request: NextRequest) => {
     });
   }
 
-  // All sources: fetch both and merge.
-  const [mainRows, caRows] = await Promise.all([
+  // All sources: fetch all backends and merge.
+  const [mainRows, caRows, aiRows] = await Promise.all([
     fetchLeadsFromBackend({
       base: authBackendBaseUrl(),
       requestUrl,
@@ -183,9 +245,19 @@ const handleCombinedLeadsList = async (request: NextRequest) => {
       headers,
       sourceFallback: "t2gca",
     }),
+    fetchLeadsFromBackend({
+      base: aiLeadsBackendBaseUrl(),
+      requestUrl,
+      headers,
+      sourceFallback: "t2gai",
+      useInternalKey: true,
+    }).catch((err) => {
+      console.error("AI leads backend fetch failed:", err);
+      return [] as LeadRow[];
+    }),
   ]);
 
-  const merged = [...mainRows, ...caRows].sort((a: LeadRow, b: LeadRow) => {
+  const merged = [...mainRows, ...caRows, ...aiRows].sort((a: LeadRow, b: LeadRow) => {
     const ta = new Date(String(a.created_at || 0)).getTime();
     const tb = new Date(String(b.created_at || 0)).getTime();
     return tb - ta;
@@ -207,11 +279,46 @@ const handleCombinedLeadsList = async (request: NextRequest) => {
   });
 };
 
+const handleLeadDelete = async (request: NextRequest, rawId: string) => {
+  const parsed = parseCompositeLeadId(rawId);
+  if (!parsed) {
+    return Response.json(
+      { success: false, message: "Invalid lead id (expected source-id format)" },
+      { status: 400 }
+    );
+  }
+
+  const base = leadSourceBaseUrl(parsed.source);
+  const backendUrl = withApiRoot(base, `leads/${parsed.numericId}`);
+  const headers = buildForwardHeaders(request);
+  const internalKey = adminInternalApiKey();
+  if (parsed.source === "t2gai" && internalKey) {
+    headers.set("x-admin-internal-key", internalKey);
+  }
+
+  const response = await fetch(backendUrl, {
+    method: "DELETE",
+    headers,
+    redirect: "manual",
+    cache: "no-store",
+  });
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+};
+
 const proxy = async (request: NextRequest, context: RouteContext) => {
   try {
     const { path } = await context.params;
     if (request.method === "GET" && path[0] === "leads" && path.length === 1) {
       return await handleCombinedLeadsList(request);
+    }
+
+    if (request.method === "DELETE" && path[0] === "leads" && path.length === 2) {
+      return await handleLeadDelete(request, path[1]);
     }
 
     const backendUrl = await buildBackendUrl(request, context);

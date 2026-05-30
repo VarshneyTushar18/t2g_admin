@@ -31,6 +31,18 @@ export default function LeadDetailModal({ lead, onClose }) {
               <dt>Phone</dt>
               <dd>{lead.phone || "—"}</dd>
             </div>
+            {lead.company ? (
+              <div>
+                <dt>Company</dt>
+                <dd>{lead.company}</dd>
+              </div>
+            ) : null}
+            {lead.ai_product ? (
+              <div>
+                <dt>AI product</dt>
+                <dd>{lead.ai_product}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>Country</dt>
               <dd>{lead.country || "—"}</dd>

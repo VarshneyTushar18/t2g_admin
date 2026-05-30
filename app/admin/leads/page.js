@@ -13,6 +13,7 @@ const SOURCE_SITE_FILTERS = [
   { value: "", label: "All sources" },
   { value: "t2gca", label: "T2G CA" },
   { value: "t2g", label: "T2G Original" },
+  { value: "t2gai", label: "T2G AI" },
 ];
 
 function SearchIcon() {

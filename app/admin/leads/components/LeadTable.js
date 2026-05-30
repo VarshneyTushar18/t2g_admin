@@ -5,11 +5,15 @@ const FORM_TYPES = [
   { value: "contact_page", label: "Contact page" },
   { value: "service_form", label: "Service form" },
   { value: "career", label: "Career" },
+  { value: "ai_contact", label: "AI contact" },
 ];
 
 const SOURCE_SITE_LABELS = {
   t2gca: "T2G CA",
   t2g: "T2G Original",
+  t2gai: "T2G AI",
+  t2g_ai: "T2G AI",
+  tech2globe_ai: "T2G AI",
   t2g_original: "T2G Original",
   tech2globeca: "T2G CA",
   tech2globe: "T2G Original",
@@ -78,7 +82,7 @@ export default function LeadTable({
           </thead>
           <tbody>
             {leads.map((lead) => (
-              <tr key={lead.id}>
+              <tr key={`${lead.source_site || "lead"}-${lead.id}`}>
                 <td data-label="Name">
                   <span className="leads-name">{lead.name}</span>
                 </td>
@@ -148,7 +152,7 @@ export default function LeadTable({
 
       <div className="leads-mobile-cards">
         {leads.map((lead) => (
-          <article key={lead.id} className="leads-mobile-card">
+          <article key={`${lead.source_site || "lead"}-${lead.id}`} className="leads-mobile-card">
             <div className="leads-mobile-card-top">
               <strong>{lead.name}</strong>
               {lead.form_type && <span className="leads-pill">{lead.form_type}</span>}
