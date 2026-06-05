@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { api } from "@/lib/api";
 import { getPostLoginPath } from "@/lib/adminModules";
 import { ADMIN_LOGIN_PATH, TEAM_LOGIN_PATH } from "@/lib/authUrls";
 import PasswordInput from "./PasswordInput";
 import "../admin-mobile.css";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 const COPY = {
   admin: {
@@ -31,20 +34,40 @@ const COPY = {
  */
 export default function AdminLoginForm({ portal }) {
   const router = useRouter();
+  const turnstileRef = useRef(null);
   const copy = COPY[portal];
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [cfToken, setCfToken] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const captchaRequired = Boolean(TURNSTILE_SITE_KEY);
+  const canSubmit = !loading && (!captchaRequired || cfToken);
+
+  const resetCaptcha = () => {
+    setCfToken("");
+    turnstileRef.current?.reset();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (captchaRequired && !cfToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const data = await api.post("/api/auth/login", { email, password });
+      const data = await api.post("/api/auth/login", {
+        email,
+        password,
+        cfToken: cfToken || undefined,
+      });
       const user = data.user;
 
       if (!user) {
@@ -61,6 +84,7 @@ export default function AdminLoginForm({ portal }) {
         } catch {
           /* ignore */
         }
+        resetCaptcha();
         return;
       }
 
@@ -71,12 +95,14 @@ export default function AdminLoginForm({ portal }) {
         } catch {
           /* ignore */
         }
+        resetCaptcha();
         return;
       }
 
       router.push(getPostLoginPath(user));
     } catch (err) {
       setError(err.message);
+      resetCaptcha();
     } finally {
       setLoading(false);
     }
@@ -159,6 +185,13 @@ export default function AdminLoginForm({ portal }) {
 
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+        .turnstile-wrap {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 16px;
+          min-height: 65px;
+        }
+
         .portal-link {
           display: block;
           margin-top: 20px;
@@ -219,7 +252,28 @@ export default function AdminLoginForm({ portal }) {
               />
             </div>
 
-            <button type="submit" className="btn" disabled={loading}>
+            {captchaRequired ? (
+              <div className="turnstile-wrap">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={setCfToken}
+                  onExpire={() => setCfToken("")}
+                  onError={() => {
+                    setCfToken("");
+                    setError(
+                      "Security check failed. Add this domain in Cloudflare Turnstile (Admin Login widget).",
+                    );
+                  }}
+                  options={{
+                    theme: "dark",
+                    size: "normal",
+                  }}
+                />
+              </div>
+            ) : null}
+
+            <button type="submit" className="btn" disabled={!canSubmit}>
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>

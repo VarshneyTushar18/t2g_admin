@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export default function CustomEditor({ value, onChange }) {
+export default function CustomEditor({ value, onChange, editorApiRef }) {
   const editorRef = useRef(null);
   const instanceRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -48,7 +48,17 @@ export default function CustomEditor({ value, onChange }) {
           onChange(editor.getData());
         });
 
+        editor.editing.view.document.on("blur", () => {
+          onChange(editor.getData());
+        });
+
         instanceRef.current = editor;
+
+        if (editorApiRef) {
+          editorApiRef.current = {
+            getData: () => instanceRef.current?.getData() || "",
+          };
+        }
       } catch (err) {
         console.error("CKEditor init error:", err);
       }
@@ -57,12 +67,13 @@ export default function CustomEditor({ value, onChange }) {
     init();
 
     return () => {
+      if (editorApiRef) editorApiRef.current = null;
       if (instanceRef.current) {
         instanceRef.current.destroy().catch(() => {});
         instanceRef.current = null;
       }
     };
-  }, [ready]); // ← only runs once when ready
+  }, [ready, editorApiRef]); // ← only runs once when ready
 
   // ✅ Sync value when editing existing item
   useEffect(() => {

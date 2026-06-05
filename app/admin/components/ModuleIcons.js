@@ -37,6 +37,12 @@ const icons = {
       <path d="M8 17v-4M12 17V9M16 17v-6" strokeLinecap="round" />
     </svg>
   ),
+  blog: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M6 4h12a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 012-2z" strokeLinejoin="round" />
+      <path d="M8 8h8M8 12h8" strokeLinecap="round" />
+    </svg>
+  ),
 };
 
 export function ModuleIcon({ moduleKey, className }) {
@@ -77,5 +83,10 @@ export const MODULE_THEMES = {
     accent: "#6366f1",
     glow: "rgba(99, 102, 241, 0.35)",
     bg: "linear-gradient(135deg, #e0e7ff 0%, #eef2ff 100%)",
+  },
+  blog: {
+    accent: "#0d9488",
+    glow: "rgba(13, 148, 136, 0.35)",
+    bg: "linear-gradient(135deg, #ccfbf1 0%, #f0fdfa 100%)",
   },
 };
