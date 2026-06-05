@@ -1,33 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { api } from "@/lib/api";
 
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 export default function LoginPage() {
   const router = useRouter();
+  const turnstileRef = useRef(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [cfToken, setCfToken] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+  const captchaRequired = Boolean(TURNSTILE_SITE_KEY);
+  const canSubmit = !loading && (!captchaRequired || cfToken);
 
-  try {
-    await api.post("/api/auth/login", { email, password });
-    router.push("/admin/leads");
-  } catch (err) {
-    setError(err.message);
-    setLoading(false);
-  }
-};
+  const resetCaptcha = () => {
+    setCfToken("");
+    turnstileRef.current?.reset();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (captchaRequired && !cfToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await api.post("/api/auth/login", {
+        email,
+        password,
+        cfToken: cfToken || undefined,
+      });
+      router.push("/admin/leads");
+    } catch (err) {
+      setError(err.message || "Login failed");
+      setLoading(false);
+      resetCaptcha();
+    }
+  };
 
   return (
     <>
@@ -105,6 +128,13 @@ export default function LoginPage() {
           color: #fff;
         }
 
+        .turnstile-wrap {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 16px;
+          min-height: 65px;
+        }
+
         .error {
           color: #f87171;
           font-size: 13px;
@@ -172,7 +202,28 @@ export default function LoginPage() {
               </span>
             </div>
 
-            <button className="btn" disabled={loading}>
+            {captchaRequired ? (
+              <div className="turnstile-wrap">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={setCfToken}
+                  onExpire={() => setCfToken("")}
+                  onError={() => {
+                    setCfToken("");
+                    setError(
+                      "Security check failed. Add this domain in Cloudflare Turnstile (Admin Login widget).",
+                    );
+                  }}
+                  options={{
+                    theme: "dark",
+                    size: "normal",
+                  }}
+                />
+              </div>
+            ) : null}
+
+            <button className="btn" type="submit" disabled={!canSubmit}>
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
