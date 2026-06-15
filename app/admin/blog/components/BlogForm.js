@@ -97,7 +97,7 @@ export default function BlogForm({
   };
 
   const clearImage = () => {
-    setForm((prev) => => ({
+    setForm((prev) => ({
       ...prev,
       featuredImageFile: null,
       featured_image: "",
