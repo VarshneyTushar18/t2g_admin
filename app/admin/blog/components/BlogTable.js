@@ -1,7 +1,10 @@
+"use client";
+
+import Link from "next/link";
+
 export default function BlogTable({
   items = [],
   categories = [],
-  onEdit,
   onDelete,
   canEdit = true,
   canDelete = true,
@@ -76,13 +79,13 @@ export default function BlogTable({
               <td>
                 <div className="blog-actions">
                   {canEdit && (
-                    <button
-                      type="button"
+                    <Link
+                      href={`/admin/blog/edit/${item.id}`}
                       className="btn btn-edit"
-                      onClick={() => onEdit(item)}
+                      style={{ textDecoration: "none", display: "inline-block" }}
                     >
                       Edit
-                    </button>
+                    </Link>
                   )}
                   {canDelete && (
                     <button

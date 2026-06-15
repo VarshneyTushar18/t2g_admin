@@ -2,35 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import ReadOnlyBanner from "../components/ReadOnlyBanner";
 import useBlogPosts from "./hooks/useBlogPosts";
 import BlogTable from "./components/BlogTable";
-import BlogModal from "./components/BlogModal";
 import {
-  createBlogPost,
-  updateBlogPost,
   deleteBlogPost,
   getCategories,
   createCategory,
   deleteCategory,
-  emptyBlogSeo,
 } from "./services/blogService";
-
-const emptyForm = {
-  title: "",
-  slug: "",
-  excerpt: "",
-  content: "",
-  status: "publish",
-  author_name: "",
-  featured_image: "",
-  featuredImageFile: null,
-  categories: [],
-  tags: [],
-  seo: { ...emptyBlogSeo },
-};
 
 function pageNumbers(current, total) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -42,9 +24,9 @@ function pageNumbers(current, total) {
 
 export default function BlogPage() {
   const router = useRouter();
-  const { user, loading: authLoading, canView, canAdd, canEdit, canDelete, isReadOnly } =
+  const searchParams = useSearchParams();
+  const { loading: authLoading, canView, canAdd, canEdit, canDelete, isReadOnly } =
     useAuth();
-  const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
   const {
     items,
@@ -59,10 +41,7 @@ export default function BlogPage() {
     goToPage,
     changeLimit,
   } = useBlogPosts();
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState(null);
   const [categories, setCategories] = useState([]);
-  const [form, setForm] = useState(emptyForm);
   const [newCategory, setNewCategory] = useState("");
 
   const loadCategories = async () => {
@@ -84,57 +63,20 @@ export default function BlogPage() {
   }, [authLoading, canView, router]);
 
   useEffect(() => {
+    if (searchParams.get("created") === "1") {
+      setSuccess("Post created successfully.");
+      router.replace("/admin/blog");
+    } else if (searchParams.get("updated") === "1") {
+      setSuccess("Post updated successfully.");
+      router.replace("/admin/blog");
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
     if (!success) return;
     const t = setTimeout(() => setSuccess(""), 4000);
     return () => clearTimeout(t);
   }, [success]);
-
-  const openCreate = () => {
-    const defaultAuthor =
-      user?.email?.split("@")[0]?.replace(/[._]/g, " ") || "";
-    setForm({ ...emptyForm, author_name: defaultAuthor });
-    setEditingId(null);
-    setShowModal(true);
-  };
-
-  const openEdit = (item) => {
-    setForm({
-      title: item.title,
-      slug: item.slug,
-      excerpt: item.excerpt || "",
-      content: item.content || "",
-      status: item.status || "publish",
-      author_name: item.author || item.author_name || "",
-      featured_image: item.featured_image || "",
-      featuredImageFile: null,
-      categories: item.categories || [],
-      tags: Array.isArray(item.tags) ? item.tags : [],
-      seo: { ...emptyBlogSeo, ...(item.seo || {}) },
-    });
-    setEditingId(item.id);
-    setShowModal(true);
-  };
-
-  const handleSubmit = async (payload = form) => {
-    if (submitting) return;
-
-    try {
-      setSubmitting(true);
-      if (editingId) {
-        await updateBlogPost(editingId, payload);
-      } else {
-        await createBlogPost(payload);
-      }
-      await reload();
-      setShowModal(false);
-      setForm(emptyForm);
-      setSuccess(editingId ? "Post updated." : "Post created.");
-    } catch (err) {
-      alert(err.message || "Failed to save blog post");
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleDelete = async (item) => {
     if (!canDelete("blog")) return;
@@ -212,8 +154,10 @@ export default function BlogPage() {
           border-radius: 6px;
         }
         .btn-add {
+          display: inline-flex; align-items: center;
           background: #16a37f; color: white; padding: 8px 16px;
           border-radius: 6px; border: none; cursor: pointer; font-weight: 700;
+          text-decoration: none;
         }
         .btn-search {
           background: #4f8ef7; color: white; padding: 8px 16px;
@@ -258,13 +202,13 @@ export default function BlogPage() {
           <div>
             <h1 className="bp-title">Blog Posts</h1>
             <p className="bp-subtitle">
-              List, edit, and delete posts (separate blog database — testimonials unchanged).
+              Manage posts, categories, and SEO for the live blog.
             </p>
           </div>
           {canAdd("blog") && !readOnly && (
-            <button type="button" className="btn-add" onClick={openCreate}>
+            <Link href="/admin/blog/create" className="btn-add">
               + Add Blog Post
-            </button>
+            </Link>
           )}
         </div>
 
@@ -341,7 +285,6 @@ export default function BlogPage() {
                 <BlogTable
                   items={items}
                   categories={categories}
-                  onEdit={openEdit}
                   onDelete={handleDelete}
                   canEdit={canEdit("blog") && !readOnly}
                   canDelete={canDelete("blog")}
@@ -408,18 +351,6 @@ export default function BlogPage() {
           </div>
         </div>
       </div>
-
-      {showModal && (
-        <BlogModal
-          form={form}
-          setForm={setForm}
-          editingId={editingId}
-          categories={categories}
-          onSubmit={handleSubmit}
-          submitting={submitting}
-          onClose={() => setShowModal(false)}
-        />
-      )}
     </>
   );
 }
