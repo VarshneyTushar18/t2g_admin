@@ -1,5 +1,41 @@
 import { api } from "@/lib/api";
 
+export const emptyBlogSeo = {
+  meta_title: "",
+  meta_description: "",
+  focus_keyword: "",
+  canonical_url: "",
+  robots_noindex: false,
+  robots_nofollow: false,
+  og_title: "",
+  og_description: "",
+  og_image: "",
+  twitter_title: "",
+  twitter_description: "",
+  twitter_image: "",
+};
+
+const buildFormData = (form) => {
+  const data = new FormData();
+  data.append("title", form.title || "");
+  data.append("slug", form.slug || "");
+  data.append("excerpt", form.excerpt || "");
+  data.append("content", form.content || "");
+  data.append("status", form.status || "publish");
+  data.append("author_name", form.author_name || "");
+  data.append("categories", JSON.stringify(form.categories || []));
+  data.append("tags", JSON.stringify(form.tags || []));
+  data.append("seo", JSON.stringify(form.seo || emptyBlogSeo));
+
+  if (form.featuredImageFile instanceof File) {
+    data.append("featured_image", form.featuredImageFile);
+  } else if (form.featured_image) {
+    data.append("featured_image", form.featured_image);
+  }
+
+  return data;
+};
+
 export async function getBlogPosts(params = {}) {
   const search = new URLSearchParams();
   if (params.page) search.set("page", String(params.page));
@@ -20,11 +56,11 @@ export async function getBlogPost(id) {
 }
 
 export async function createBlogPost(form) {
-  return api.post("/api/blog", form);
+  return api.upload("/api/blog", buildFormData(form));
 }
 
 export async function updateBlogPost(id, form) {
-  return api.put(`/api/blog/${id}`, form);
+  return api.upload(`/api/blog/${id}`, buildFormData(form), "PUT");
 }
 
 export async function deleteBlogPost(id) {
@@ -47,4 +83,9 @@ export async function deleteCategory(id) {
 export async function getTags() {
   const data = await api.get("/api/blog/tags");
   return data.data || [];
+}
+
+export async function getEditorSchema() {
+  const data = await api.get("/api/blog/editor-schema");
+  return data;
 }

@@ -15,6 +15,7 @@ import {
   getCategories,
   createCategory,
   deleteCategory,
+  emptyBlogSeo,
 } from "./services/blogService";
 
 const emptyForm = {
@@ -23,8 +24,12 @@ const emptyForm = {
   excerpt: "",
   content: "",
   status: "publish",
+  author_name: "",
   featured_image: "",
+  featuredImageFile: null,
   categories: [],
+  tags: [],
+  seo: { ...emptyBlogSeo },
 };
 
 function pageNumbers(current, total) {
@@ -85,7 +90,9 @@ export default function BlogPage() {
   }, [success]);
 
   const openCreate = () => {
-    setForm(emptyForm);
+    const defaultAuthor =
+      user?.email?.split("@")[0]?.replace(/[._]/g, " ") || "";
+    setForm({ ...emptyForm, author_name: defaultAuthor });
     setEditingId(null);
     setShowModal(true);
   };
@@ -97,8 +104,12 @@ export default function BlogPage() {
       excerpt: item.excerpt || "",
       content: item.content || "",
       status: item.status || "publish",
+      author_name: item.author || item.author_name || "",
       featured_image: item.featured_image || "",
+      featuredImageFile: null,
       categories: item.categories || [],
+      tags: Array.isArray(item.tags) ? item.tags : [],
+      seo: { ...emptyBlogSeo, ...(item.seo || {}) },
     });
     setEditingId(item.id);
     setShowModal(true);

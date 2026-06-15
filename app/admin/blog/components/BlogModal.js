@@ -21,7 +21,7 @@ export default function BlogModal({
         .bm-modal {
           background: #fff; border-radius: 14px;
           box-shadow: 0 8px 40px rgba(0,0,0,0.18);
-          width: 100%; max-width: 760px; max-height: 90vh;
+          width: 100%; max-width: 920px; max-height: 92vh;
           display: flex; flex-direction: column; overflow: hidden;
         }
         .bm-header {

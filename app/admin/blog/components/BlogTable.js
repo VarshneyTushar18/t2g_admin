@@ -38,6 +38,8 @@ export default function BlogTable({
           <tr>
             <th>ID</th>
             <th>Title</th>
+            <th>Posted by</th>
+            <th>Views</th>
             <th>Status</th>
             <th>Categories</th>
             <th>Date</th>
@@ -62,6 +64,8 @@ export default function BlogTable({
                   </a>
                 )}
               </td>
+              <td>{item.author || item.author_name || "—"}</td>
+              <td>{Number(item.view_count || 0).toLocaleString()}</td>
               <td>
                 <span className={`blog-status blog-status-${item.status}`}>
                   {item.status}
