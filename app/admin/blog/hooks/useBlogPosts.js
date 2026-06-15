@@ -16,6 +16,7 @@ export default function useBlogPosts() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function useBlogPosts() {
         page,
         limit,
         search: debouncedSearch,
+        category: categoryFilter,
       });
       setItems(Array.isArray(result.items) ? result.items : []);
       setPagination(result.pagination || DEFAULT_PAGINATION);
@@ -43,7 +45,7 @@ export default function useBlogPosts() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch]);
+  }, [page, limit, debouncedSearch, categoryFilter]);
 
   useEffect(() => {
     load();
@@ -62,6 +64,11 @@ export default function useBlogPosts() {
     setPage(1);
   };
 
+  const filterByCategory = (categoryId) => {
+    setCategoryFilter(categoryId ? String(categoryId) : "");
+    setPage(1);
+  };
+
   return {
     items,
     loading,
@@ -71,6 +78,8 @@ export default function useBlogPosts() {
     setSearch,
     page,
     limit,
+    categoryFilter,
+    filterByCategory,
     reload,
     goToPage,
     changeLimit,

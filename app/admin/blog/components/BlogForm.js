@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import CustomEditor from "../../case-studies/components/CustomEditor";
 import { slugify } from "../../utilis/slugify";
 import { emptyBlogSeo } from "../services/blogService";
+import CategoryMultiSelect from "./CategoryMultiSelect";
 
 const SITE_HOST = "www.tech2globe.com";
 
@@ -73,14 +74,7 @@ export default function BlogForm({
       seo: { ...(prev.seo || emptyBlogSeo), [field]: value },
     }));
 
-  const toggleCategory = (categoryId) => {
-    const id = Number(categoryId);
-    const current = Array.isArray(form.categories) ? form.categories : [];
-    const next = current.includes(id)
-      ? current.filter((c) => c !== id)
-      : [...current, id];
-    handleChange("categories", next);
-  };
+  const handleCategoriesChange = (ids) => handleChange("categories", ids);
 
   const imagePreview =
     form.featuredImageFile instanceof File
@@ -152,6 +146,16 @@ export default function BlogForm({
   const tagsInputValue = Array.isArray(form.tags)
     ? form.tags.join(", ")
     : form.tagsInput || "";
+
+  const categoryPicker = categories.length ? (
+    <CategoryMultiSelect
+      categories={categories}
+      selected={form.categories || []}
+      onChange={handleCategoriesChange}
+    />
+  ) : (
+    <span style={{ color: "#888", fontSize: 13 }}>No categories yet.</span>
+  );
 
   return (
     <>
@@ -282,13 +286,6 @@ export default function BlogForm({
           box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.12);
         }
         .bf-cats { display: flex; flex-direction: column; gap: 8px; }
-        .bf-cat {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 13px;
-          cursor: pointer;
-        }
         .bf-upload {
           border: 1.5px dashed #c5cad3;
           border-radius: 10px;
@@ -400,13 +397,19 @@ export default function BlogForm({
             </div>
 
             {tab === "content" && (
-              <div className="bf-editor-wrap">
-                <CustomEditor
-                  value={form.content || ""}
-                  onChange={(val) => handleChange("content", val)}
-                  editorApiRef={editorApiRef}
-                />
-              </div>
+              <>
+                <div className="bf-group" style={{ marginBottom: 16 }}>
+                  <label className="bf-label">Categories</label>
+                  {categoryPicker}
+                </div>
+                <div className="bf-editor-wrap">
+                  <CustomEditor
+                    value={form.content || ""}
+                    onChange={(val) => handleChange("content", val)}
+                    editorApiRef={editorApiRef}
+                  />
+                </div>
+              </>
             )}
 
             {tab === "seo" && (
@@ -623,21 +626,7 @@ export default function BlogForm({
 
               <div className="bf-panel">
                 <h3 className="bf-panel-title">Categories</h3>
-                <div className="bf-cats">
-                  {categories.map((cat) => (
-                    <label key={cat.id} className="bf-cat">
-                      <input
-                        type="checkbox"
-                        checked={(form.categories || []).includes(Number(cat.id))}
-                        onChange={() => toggleCategory(cat.id)}
-                      />
-                      {cat.name}
-                    </label>
-                  ))}
-                  {!categories.length && (
-                    <span style={{ color: "#888", fontSize: 13 }}>No categories yet.</span>
-                  )}
-                </div>
+                {categoryPicker}
               </div>
 
               <div className="bf-panel">

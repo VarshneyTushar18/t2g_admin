@@ -41,6 +41,7 @@ export async function getBlogPosts(params = {}) {
   if (params.page) search.set("page", String(params.page));
   if (params.limit) search.set("limit", String(params.limit));
   if (params.search) search.set("search", params.search);
+  if (params.category) search.set("category", String(params.category));
 
   const qs = search.toString();
   const data = await api.get(`/api/blog/admin/list${qs ? `?${qs}` : ""}`);
@@ -88,4 +89,36 @@ export async function getTags() {
 export async function getEditorSchema() {
   const data = await api.get("/api/blog/editor-schema");
   return data;
+}
+
+export async function exportBlogSeoCsv({ search = "", status = "" } = {}) {
+  const params = new URLSearchParams();
+  if (search.trim()) params.set("search", search.trim());
+  if (status) params.set("status", status);
+
+  const qs = params.toString();
+  const res = await fetch(`/api/blog/admin/export${qs ? `?${qs}` : ""}`, {
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    let message = "Export failed";
+    try {
+      const data = await res.json();
+      message = data.error || data.message || message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `blog-seo-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

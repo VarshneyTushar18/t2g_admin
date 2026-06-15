@@ -7,11 +7,13 @@ import { useAuth } from "../context/AuthContext";
 import ReadOnlyBanner from "../components/ReadOnlyBanner";
 import useBlogPosts from "./hooks/useBlogPosts";
 import BlogTable from "./components/BlogTable";
+import CategoryManageDropdown from "./components/CategoryManageDropdown";
 import {
   deleteBlogPost,
   getCategories,
   createCategory,
   deleteCategory,
+  exportBlogSeoCsv,
 } from "./services/blogService";
 
 function pageNumbers(current, total) {
@@ -40,9 +42,12 @@ export default function BlogPage() {
     reload,
     goToPage,
     changeLimit,
+    categoryFilter,
+    filterByCategory,
   } = useBlogPosts();
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const loadCategories = async () => {
     try {
@@ -120,6 +125,18 @@ export default function BlogPage() {
     }
   };
 
+  const handleExportSeo = async () => {
+    if (exporting) return;
+    try {
+      setExporting(true);
+      await exportBlogSeoCsv({ search });
+    } catch (err) {
+      alert(err.message || "SEO export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (authLoading || !canView("blog")) {
     return (
       <div className="bp" style={{ padding: 24 }}>
@@ -162,6 +179,29 @@ export default function BlogPage() {
         .btn-search {
           background: #4f8ef7; color: white; padding: 8px 16px;
           border-radius: 6px; border: none; cursor: pointer;
+        }
+        .btn-export {
+          background: #fff; color: #141e46; padding: 8px 16px;
+          border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;
+          font-weight: 600;
+        }
+        .btn-export:disabled { opacity: 0.6; cursor: not-allowed; }
+        .bp-filter-select {
+          min-width: 180px;
+          padding: 8px 12px;
+          border: 1px solid #ccc;
+          border-radius: 6px;
+          font-size: 13px;
+          background: #fff;
+        }
+        .bp-cat-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+        @media (max-width: 720px) {
+          .bp-cat-row { grid-template-columns: 1fr; }
         }
         .cat-chip {
           background: #eef2f7; padding: 6px 10px; border-radius: 20px;
@@ -226,8 +266,29 @@ export default function BlogPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
+              <select
+                className="bp-filter-select"
+                value={categoryFilter}
+                onChange={(e) => filterByCategory(e.target.value)}
+                aria-label="Filter by category"
+              >
+                <option value="">All categories</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
               <button type="submit" className="btn-search">
                 Search
+              </button>
+              <button
+                type="button"
+                className="btn-export"
+                onClick={handleExportSeo}
+                disabled={exporting || loading}
+              >
+                {exporting ? "Exporting…" : "Export SEO CSV"}
               </button>
             </form>
 
@@ -253,26 +314,11 @@ export default function BlogPage() {
                   Add Category
                 </button>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {categories.map((cat) => (
-                  <div key={cat.id} className="cat-chip">
-                    {cat.name}
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteCategory(cat.id)}
-                      disabled={readOnly || !canDelete("blog")}
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        color: "red",
-                        cursor: "pointer",
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <CategoryManageDropdown
+                categories={categories}
+                canDelete={canDelete("blog") && !readOnly}
+                onDelete={handleDeleteCategory}
+              />
             </div>
 
             {loading && <div>Loading...</div>}
