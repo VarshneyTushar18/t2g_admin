@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   experimental: {
-    // Life gallery uploads can include many images; default proxy buffer is 10MB.
-    proxyClientMaxBodySize: "150mb",
+    // Life gallery uploads: many images in one request (default proxy buffer is 10MB).
+    proxyClientMaxBodySize: "500mb",
   },
 
   images: {
