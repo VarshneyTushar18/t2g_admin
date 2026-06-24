@@ -1,9 +1,10 @@
 import { api, uploadWithProgress } from "@/lib/api";
+import { compressImageFile, compressImageFiles } from "../utils/compressImage";
 
 const BASE_URL = "/api/life/admin/items";
 
-/** Images per gallery upload request (keeps each request under typical nginx limits). */
-const GALLERY_UPLOAD_BATCH_SIZE = 8;
+/** One image per request — safest when nginx client_max_body_size is still small. */
+const GALLERY_UPLOAD_BATCH_SIZE = 1;
 
 const parseGallery = (gallery) => {
   if (Array.isArray(gallery)) return gallery;
@@ -45,17 +46,18 @@ const buildGalleryFormData = (files) => {
   return data;
 };
 
-/** Upload gallery files in chunks so one huge multipart body does not hit 413. */
+/** Upload gallery files one at a time (compressed) to avoid 413 from nginx/proxy. */
 export async function appendGalleryImagesInBatches(id, files, { onProgress } = {}) {
   if (!files?.length) return null;
 
+  const compressed = await compressImageFiles(files);
   const batches = [];
-  for (let i = 0; i < files.length; i += GALLERY_UPLOAD_BATCH_SIZE) {
-    batches.push(files.slice(i, i + GALLERY_UPLOAD_BATCH_SIZE));
+  for (let i = 0; i < compressed.length; i += GALLERY_UPLOAD_BATCH_SIZE) {
+    batches.push(compressed.slice(i, i + GALLERY_UPLOAD_BATCH_SIZE));
   }
 
   let lastResult = null;
-  const total = files.length;
+  const total = compressed.length;
   let uploaded = 0;
 
   for (const batch of batches) {
@@ -88,16 +90,19 @@ export async function getLifeItem(id) {
   return api.get(`${BASE_URL}/${id}`);
 }
 
-/** Create item: banner first, then gallery in batches (avoids 413 on large folders). */
+/** Create item: compress banner, create row, then gallery one-by-one. */
 export async function createLifeItem(form, { onProgress } = {}) {
   const galleryFiles = form.galleryFiles || [];
   const hasGallery = galleryFiles.length > 0;
 
+  onProgress?.(2);
+  const banner = form.banner ? await compressImageFile(form.banner) : null;
+
   const res = await uploadWithProgress(
     BASE_URL,
-    buildFormData({ ...form, galleryFiles: [] }, { includeGalleryFiles: false }),
+    buildFormData({ ...form, banner, galleryFiles: [] }, { includeGalleryFiles: false }),
     "POST",
-    (p) => onProgress?.(hasGallery ? Math.round(p * 15) : p),
+    (p) => onProgress?.(hasGallery ? 5 + Math.round(p * 10) : p),
   );
 
   const id = res?.data?.id;
@@ -112,9 +117,11 @@ export async function createLifeItem(form, { onProgress } = {}) {
 
 /** Update metadata / banner / kept gallery URLs — not new image files. */
 export async function updateLifeItem(id, form, { onProgress } = {}) {
+  const banner = form.banner ? await compressImageFile(form.banner) : form.banner;
+
   return uploadWithProgress(
     `${BASE_URL}/${id}`,
-    buildFormData(form, { includeGalleryFiles: false }),
+    buildFormData({ ...form, banner }, { includeGalleryFiles: false }),
     "PUT",
     onProgress,
   );
