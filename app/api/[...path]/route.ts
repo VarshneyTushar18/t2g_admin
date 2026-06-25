@@ -126,15 +126,15 @@ const leadSourceBaseUrl = (source: LeadSource) => {
 };
 
 const parseCompositeLeadId = (rawId: string) => {
-  const match = String(rawId).match(/^(t2g|t2gca|t2gai)-(\d+)$/i);
+  const match = String(rawId).match(/^(t2g|t2gca|t2gai|shopify)-(\d+)$/i);
   if (!match) return null;
   return {
-    source: normalizeSourceSite(match[1], "") as LeadSource,
+    source: normalizeSourceSite(match[1], "") as LeadSource | "shopify",
     numericId: match[2],
   };
 };
 
-const toCompositeLeadId = (source: LeadSource, id: unknown) =>
+const toCompositeLeadId = (source: LeadSource | "shopify", id: unknown) =>
   `${source}-${String(id)}`;
 
 const fetchLeadsFromBackend = async ({
@@ -143,12 +143,14 @@ const fetchLeadsFromBackend = async ({
   headers,
   sourceFallback,
   useInternalKey = false,
+  idPrefix,
 }: {
   base: string;
   requestUrl: URL;
   headers: Headers;
-  sourceFallback: LeadSource;
+  sourceFallback: LeadSource | "shopify";
   useInternalKey?: boolean;
+  idPrefix?: LeadSource | "shopify";
 }) => {
   const url = withApiRoot(base, "leads");
   const params = new URLSearchParams(requestUrl.search);
@@ -177,13 +179,17 @@ const fetchLeadsFromBackend = async ({
 
   const json = await res.json();
   const rows = Array.isArray(json?.data) ? json.data : [];
+  const compositePrefix = idPrefix || sourceFallback;
   return rows.map((row: LeadRow) => {
-    const source = normalizeSourceSite(row.source_site, sourceFallback) as LeadSource;
+    const source = normalizeSourceSite(row.source_site, sourceFallback) as
+      | LeadSource
+      | "shopify";
     const numericId = row.id;
     return {
       ...row,
-      id: toCompositeLeadId(source, numericId),
+      id: toCompositeLeadId(compositePrefix, numericId),
       source_site: source,
+      lead_source: row.lead_source || row.form_type || compositePrefix,
       created_at:
         (row.created_at as string | undefined) ||
         (row.submitted_at as string | undefined) ||
@@ -204,6 +210,32 @@ const handleCombinedLeadsList = async (request: NextRequest) => {
     Math.max(Number(requestUrl.searchParams.get("limit") || 10), 1),
     100
   );
+
+  const formType = requestUrl.searchParams.get("form_type") || "";
+
+  if (formType === "shopify_intake") {
+    const rows = await fetchLeadsFromBackend({
+      base: authBackendBaseUrl(),
+      requestUrl,
+      headers,
+      sourceFallback: "shopify",
+      idPrefix: "shopify",
+    });
+
+    const total = rows.length;
+    const offset = (page - 1) * limit;
+    const data = rows.slice(offset, offset + limit);
+    return Response.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
+  }
 
   // If a specific source is selected, fetch only that backend.
   if (sourceSite === "t2gca" || sourceSite === "t2g" || sourceSite === "t2gai") {
@@ -288,7 +320,27 @@ const handleLeadDelete = async (request: NextRequest, rawId: string) => {
     );
   }
 
-  const base = leadSourceBaseUrl(parsed.source);
+  if (parsed.source === "shopify") {
+    const backendUrl = withApiRoot(
+      authBackendBaseUrl(),
+      `leads/${parsed.numericId}`,
+    );
+    const headers = buildForwardHeaders(request);
+    const response = await fetch(backendUrl, {
+      method: "DELETE",
+      headers,
+      redirect: "manual",
+      cache: "no-store",
+    });
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  }
+
+  const base = leadSourceBaseUrl(parsed.source as LeadSource);
   const backendUrl = withApiRoot(base, `leads/${parsed.numericId}`);
   const headers = buildForwardHeaders(request);
   const internalKey = adminInternalApiKey();

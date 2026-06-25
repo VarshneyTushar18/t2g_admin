@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { useLeads } from "./hooks/useLeads";
 import LeadTable, { FORM_TYPES } from "./components/LeadTable";
 import LeadDetailModal from "./components/LeadDetailModal";
-import { exportLeadsCsv, exportShopifyIntakesCsv } from "./services/leadService";
+import { exportLeadsCsv } from "./services/leadService";
 import ReadOnlyBanner from "../components/ReadOnlyBanner";
 import "./leads.css";
 
@@ -74,21 +74,13 @@ export default function LeadsPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      if (formType === "shopify_intake") {
-        await exportShopifyIntakesCsv({
-          search,
-          date_from: dateFrom,
-          date_to: dateTo,
-        });
-      } else {
-        await exportLeadsCsv({
-          search,
-          form_type: formType,
-          source_site: sourceSite,
-          date_from: dateFrom,
-          date_to: dateTo,
-        });
-      }
+      await exportLeadsCsv({
+        search,
+        form_type: formType,
+        source_site: sourceSite,
+        date_from: dateFrom,
+        date_to: dateTo,
+      });
     } catch (err) {
       alert(err.message);
     }
