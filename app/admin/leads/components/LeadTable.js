@@ -4,7 +4,6 @@ const FORM_TYPES = [
   { value: "", label: "All form types" },
   { value: "contact_page", label: "Contact page" },
   { value: "service_form", label: "Service form" },
-  { value: "career", label: "Career" },
   { value: "ai_contact", label: "AI contact" },
   { value: "amazon_ads", label: "Amazon Ads" },
   { value: "shopify_intake", label: "Shopify intake" },
@@ -25,7 +24,6 @@ const FORM_TYPE_LABELS = {
   ai_contact: "AI contact",
   contact_page: "Contact page",
   service_form: "Service form",
-  career: "Career",
   amazon_ads: "Amazon Ads",
   shopify_intake: "Shopify intake",
 };
