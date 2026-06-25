@@ -1,23 +1,38 @@
 "use client";
 
+const FORM_TYPE_GROUPS = [
+  {
+    label: "Website forms",
+    options: [
+      { value: "contact_page", label: "Contact page" },
+      { value: "service_form", label: "Service form" },
+      { value: "ai_contact", label: "AI contact" },
+    ],
+  },
+  {
+    label: "Landing pages",
+    options: [
+      { value: "amazon_ads", label: "Amazon Ads" },
+      { value: "shopify_intake", label: "Shopify intake" },
+    ],
+  },
+];
+
 const FORM_TYPES = [
-  { value: "", label: "All form types" },
-  { value: "contact_page", label: "Contact page" },
-  { value: "service_form", label: "Service form" },
-  { value: "ai_contact", label: "AI contact" },
-  { value: "amazon_ads", label: "Amazon Ads" },
-  { value: "shopify_intake", label: "Shopify intake" },
+  { value: "", label: "All web forms" },
+  ...FORM_TYPE_GROUPS.flatMap((group) => group.options),
 ];
 
 const SOURCE_SITE_LABELS = {
-  t2gca: "T2G CA",
-  t2g: "T2G Original",
+  t2gca: "Tech2Globe.ca",
+  t2g: "Tech2Globe.com",
   t2gai: "T2G AI",
+  shopify: "Tech2Globe.com",
   t2g_ai: "T2G AI",
   tech2globe_ai: "T2G AI",
-  t2g_original: "T2G Original",
-  tech2globeca: "T2G CA",
-  tech2globe: "T2G Original",
+  t2g_original: "Tech2Globe.com",
+  tech2globeca: "Tech2Globe.ca",
+  tech2globe: "Tech2Globe.com",
 };
 
 const FORM_TYPE_LABELS = {
@@ -44,7 +59,7 @@ function formatDate(value) {
   });
 }
 
-export { FORM_TYPES };
+export { FORM_TYPES, FORM_TYPE_GROUPS };
 
 export function sourceSiteLabel(value) {
   if (!value) return "—";
@@ -99,8 +114,8 @@ export default function LeadTable({
               <th>Country</th>
               <th>Phone</th>
               <th>Message</th>
-              <th>Form</th>
-              <th>Source</th>
+              <th>Web form</th>
+              <th>Website</th>
               <th>Date</th>
               <th>Actions</th>
             </tr>
@@ -133,7 +148,7 @@ export default function LeadTable({
                     {lead.message || "—"}
                   </span>
                 </td>
-                <td data-label="Form" className="leads-cell-form">
+                <td data-label="Web form" className="leads-cell-form">
                   {lead.form_type ? (
                     <span
                       className="leads-pill"
@@ -145,7 +160,7 @@ export default function LeadTable({
                     "—"
                   )}
                 </td>
-                <td data-label="Source" className="leads-cell-source">
+                <td data-label="Website" className="leads-cell-source">
                   <div className="leads-source-block">
                     <span className="leads-source-strong">
                       {sourceSiteLabel(lead.source_site)}

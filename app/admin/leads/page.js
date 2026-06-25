@@ -3,16 +3,16 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useLeads } from "./hooks/useLeads";
-import LeadTable, { FORM_TYPES } from "./components/LeadTable";
+import LeadTable, { FORM_TYPE_GROUPS } from "./components/LeadTable";
 import LeadDetailModal from "./components/LeadDetailModal";
 import { exportLeadsCsv } from "./services/leadService";
 import ReadOnlyBanner from "../components/ReadOnlyBanner";
 import "./leads.css";
 
-const SOURCE_SITE_FILTERS = [
-  { value: "", label: "All sources" },
-  { value: "t2gca", label: "T2G CA" },
-  { value: "t2g", label: "T2G Original" },
+const WEBSITE_FILTERS = [
+  { value: "", label: "All websites" },
+  { value: "t2g", label: "Tech2Globe.com" },
+  { value: "t2gca", label: "Tech2Globe.ca" },
   { value: "t2gai", label: "T2G AI" },
 ];
 
@@ -94,7 +94,7 @@ export default function LeadsPage() {
       <header className="leads-page-header">
         <div>
           <h1>Leads</h1>
-          <p>Manage inbound enquiries from your website forms</p>
+          <p>Filter by web form or website — Amazon Ads &amp; Shopify are landing pages on Tech2Globe.com</p>
         </div>
       </header>
 
@@ -115,12 +115,17 @@ export default function LeadsPage() {
           className="leads-select"
           value={formType}
           onChange={(e) => changeFormType(e.target.value)}
-          aria-label="Filter by form type"
+          aria-label="Filter by web form"
         >
-          {FORM_TYPES.map((opt) => (
-            <option key={opt.value || "all"} value={opt.value}>
-              {opt.label}
-            </option>
+          <option value="">All web forms</option>
+          {FORM_TYPE_GROUPS.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.options.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
 
@@ -128,10 +133,10 @@ export default function LeadsPage() {
           className="leads-select"
           value={sourceSite}
           onChange={(e) => changeSourceSite(e.target.value)}
-          aria-label="Filter by source site"
+          aria-label="Filter by website"
         >
-          {SOURCE_SITE_FILTERS.map((opt) => (
-            <option key={opt.value || "all-source"} value={opt.value}>
+          {WEBSITE_FILTERS.map((opt) => (
+            <option key={opt.value || "all-website"} value={opt.value}>
               {opt.label}
             </option>
           ))}

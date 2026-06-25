@@ -144,6 +144,7 @@ const fetchLeadsFromBackend = async ({
   sourceFallback,
   useInternalKey = false,
   idPrefix,
+  limit = 1000,
 }: {
   base: string;
   requestUrl: URL;
@@ -151,11 +152,12 @@ const fetchLeadsFromBackend = async ({
   sourceFallback: LeadSource | "shopify";
   useInternalKey?: boolean;
   idPrefix?: LeadSource | "shopify";
+  limit?: number;
 }) => {
   const url = withApiRoot(base, "leads");
   const params = new URLSearchParams(requestUrl.search);
   params.set("page", "1");
-  params.set("limit", "1000");
+  params.set("limit", String(limit));
   params.delete("source_site");
   url.search = params.toString();
 
@@ -195,6 +197,156 @@ const fetchLeadsFromBackend = async ({
         (row.submitted_at as string | undefined) ||
         row.created_at,
     };
+  });
+};
+
+const csvEscape = (value: unknown) => {
+  const s = value == null ? "" : String(value);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+};
+
+const buildLeadsExportCsv = (rows: LeadRow[]) => {
+  const headers = [
+    "ID",
+    "Source Site",
+    "Name",
+    "Email",
+    "Country",
+    "Phone",
+    "Message",
+    "Form Type",
+    "Source Page",
+    "Sender IP",
+    "Location",
+    "Created At",
+  ];
+
+  const lines = [
+    headers.join(","),
+    ...rows.map((row) =>
+      [
+        row.id,
+        row.source_site || "",
+        row.name || "",
+        row.email || "",
+        row.country || "",
+        row.phone || "",
+        row.message || "",
+        row.form_type || row.lead_source || "",
+        row.source_page || "",
+        row.sender_ip || row.ip || "",
+        row.location || "",
+        row.created_at || "",
+      ]
+        .map(csvEscape)
+        .join(","),
+    ),
+  ];
+
+  return `\uFEFF${lines.join("\n")}`;
+};
+
+const collectLeadsForExport = async (request: NextRequest) => {
+  const requestUrl = new URL(request.url);
+  const headers = buildForwardHeaders(request);
+  const sourceSite = normalizeSourceSite(
+    requestUrl.searchParams.get("source_site"),
+    "",
+  );
+  const formType = requestUrl.searchParams.get("form_type") || "";
+  const exportLimit = 10000;
+
+  if (formType === "shopify_intake") {
+    return fetchLeadsFromBackend({
+      base: authBackendBaseUrl(),
+      requestUrl,
+      headers,
+      sourceFallback: "shopify",
+      idPrefix: "shopify",
+      limit: exportLimit,
+    });
+  }
+
+  if (sourceSite === "t2gca" || sourceSite === "t2g" || sourceSite === "t2gai") {
+    const base = leadSourceBaseUrl(sourceSite as LeadSource);
+    return fetchLeadsFromBackend({
+      base,
+      requestUrl,
+      headers,
+      sourceFallback: sourceSite as LeadSource,
+      useInternalKey: sourceSite === "t2gai",
+      limit: exportLimit,
+    });
+  }
+
+  const [mainRows, caRows, aiRows] = await Promise.all([
+    fetchLeadsFromBackend({
+      base: authBackendBaseUrl(),
+      requestUrl,
+      headers,
+      sourceFallback: "t2g",
+      limit: exportLimit,
+    }),
+    fetchLeadsFromBackend({
+      base: leadsBackendBaseUrl(),
+      requestUrl,
+      headers,
+      sourceFallback: "t2gca",
+      limit: exportLimit,
+    }),
+    fetchLeadsFromBackend({
+      base: aiLeadsBackendBaseUrl(),
+      requestUrl,
+      headers,
+      sourceFallback: "t2gai",
+      useInternalKey: true,
+      limit: exportLimit,
+    }).catch((err) => {
+      console.error("AI leads backend export fetch failed:", err);
+      return [] as LeadRow[];
+    }),
+  ]);
+
+  return [...mainRows, ...caRows, ...aiRows].sort((a: LeadRow, b: LeadRow) => {
+    const ta = new Date(String(a.created_at || 0)).getTime();
+    const tb = new Date(String(b.created_at || 0)).getTime();
+    return tb - ta;
+  });
+};
+
+const handleCombinedLeadsExport = async (request: NextRequest) => {
+  const requestUrl = new URL(request.url);
+  const formType = requestUrl.searchParams.get("form_type") || "";
+
+  if (formType === "shopify_intake") {
+    const backendUrl = withApiRoot(authBackendBaseUrl(), "leads/export");
+    backendUrl.search = requestUrl.search;
+    const headers = buildForwardHeaders(request);
+    const response = await fetch(backendUrl, {
+      method: "GET",
+      headers,
+      redirect: "manual",
+      cache: "no-store",
+    });
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  }
+
+  const rows = await collectLeadsForExport(request);
+  const csv = buildLeadsExportCsv(rows);
+  const stamp = new Date().toISOString().slice(0, 10);
+
+  return new Response(csv, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="leads-export-${stamp}.csv"`,
+    },
   });
 };
 
@@ -367,6 +519,14 @@ const proxy = async (request: NextRequest, context: RouteContext) => {
     const { path } = await context.params;
     if (request.method === "GET" && path[0] === "leads" && path.length === 1) {
       return await handleCombinedLeadsList(request);
+    }
+
+    if (
+      request.method === "GET" &&
+      path[0] === "leads" &&
+      path[1] === "export"
+    ) {
+      return await handleCombinedLeadsExport(request);
     }
 
     if (request.method === "DELETE" && path[0] === "leads" && path.length === 2) {

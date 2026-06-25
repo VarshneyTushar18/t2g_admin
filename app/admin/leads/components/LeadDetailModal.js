@@ -76,19 +76,17 @@ export default function LeadDetailModal({ lead, onClose }) {
               <dd>{lead.country || "—"}</dd>
             </div>
             <div>
-              <dt>Form type</dt>
+              <dt>Web form</dt>
               <dd>
                 <span className="leads-pill" data-form={lead.form_type}>
                   {formTypeLabel(lead.form_type)}
                 </span>
               </dd>
             </div>
-            {!isShopify ? (
-              <div>
-                <dt>Source site</dt>
-                <dd>{sourceSiteLabel(lead.source_site)}</dd>
-              </div>
-            ) : null}
+            <div>
+              <dt>Website</dt>
+              <dd>{sourceSiteLabel(lead.source_site)}</dd>
+            </div>
             <div>
               <dt>Source page</dt>
               <dd>{lead.source_page || "—"}</dd>
