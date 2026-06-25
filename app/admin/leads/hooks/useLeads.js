@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   deleteLead,
-  deleteShopifyIntake,
   getLeads,
-  getShopifyIntakes,
 } from "../services/leadService";
 
 const DEFAULT_PAGINATION = {
@@ -47,14 +45,11 @@ export function useLeads() {
         date_to: dateTo,
       };
 
-      const res =
-        formType === "shopify_intake"
-          ? await getShopifyIntakes(query)
-          : await getLeads({
-              ...query,
-              form_type: formType,
-              source_site: sourceSite,
-            });
+      const res = await getLeads({
+        ...query,
+        form_type: formType,
+        source_site: sourceSite,
+      });
 
       setLeads(res.data || []);
       setPagination(res.pagination || DEFAULT_PAGINATION);
@@ -71,11 +66,7 @@ export function useLeads() {
   }, [loadLeads]);
 
   const handleDelete = async (lead) => {
-    if (lead.lead_source === "shopify_intake") {
-      await deleteShopifyIntake(lead.id);
-    } else {
-      await deleteLead(lead.id);
-    }
+    await deleteLead(lead.id);
 
     if (leads.length === 1 && page > 1) {
       setPage((p) => p - 1);
