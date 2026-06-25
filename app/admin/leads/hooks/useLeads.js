@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { deleteLead, getLeads } from "../services/leadService";
+import {
+  deleteLead,
+  deleteShopifyIntake,
+  getLeads,
+  getShopifyIntakes,
+} from "../services/leadService";
 
 const DEFAULT_PAGINATION = {
   page: 1,
@@ -34,15 +39,23 @@ export function useLeads() {
     setLoading(true);
     setError(null);
     try {
-      const res = await getLeads({
+      const query = {
         page,
         limit,
         search: debouncedSearch,
-        form_type: formType,
-        source_site: sourceSite,
         date_from: dateFrom,
         date_to: dateTo,
-      });
+      };
+
+      const res =
+        formType === "shopify_intake"
+          ? await getShopifyIntakes(query)
+          : await getLeads({
+              ...query,
+              form_type: formType,
+              source_site: sourceSite,
+            });
+
       setLeads(res.data || []);
       setPagination(res.pagination || DEFAULT_PAGINATION);
     } catch (err) {
@@ -57,8 +70,13 @@ export function useLeads() {
     loadLeads();
   }, [loadLeads]);
 
-  const handleDelete = async (id) => {
-    await deleteLead(id);
+  const handleDelete = async (lead) => {
+    if (lead.lead_source === "shopify_intake") {
+      await deleteShopifyIntake(lead.id);
+    } else {
+      await deleteLead(lead.id);
+    }
+
     if (leads.length === 1 && page > 1) {
       setPage((p) => p - 1);
     } else {

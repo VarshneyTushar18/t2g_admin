@@ -6,6 +6,8 @@ const FORM_TYPES = [
   { value: "service_form", label: "Service form" },
   { value: "career", label: "Career" },
   { value: "ai_contact", label: "AI contact" },
+  { value: "amazon_ads", label: "Amazon Ads" },
+  { value: "shopify_intake", label: "Shopify intake" },
 ];
 
 const SOURCE_SITE_LABELS = {
@@ -24,6 +26,8 @@ const FORM_TYPE_LABELS = {
   contact_page: "Contact page",
   service_form: "Service form",
   career: "Career",
+  amazon_ads: "Amazon Ads",
+  shopify_intake: "Shopify intake",
 };
 
 function formTypeLabel(value) {
@@ -179,7 +183,7 @@ export default function LeadTable({
                         className="leads-btn leads-btn-sm leads-btn-danger"
                         onClick={() => {
                           if (confirm("Delete this lead permanently?")) {
-                            onDelete(lead.id);
+                            onDelete(lead);
                           }
                         }}
                       >
@@ -225,7 +229,7 @@ export default function LeadTable({
                   type="button"
                   className="leads-btn leads-btn-sm leads-btn-danger"
                   onClick={() => {
-                    if (confirm("Delete this lead?")) onDelete(lead.id);
+                    if (confirm("Delete this lead?")) onDelete(lead);
                   }}
                 >
                   Delete
