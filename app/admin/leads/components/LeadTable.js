@@ -12,7 +12,8 @@ const FORM_TYPE_GROUPS = [
   {
     label: "Landing pages",
     options: [
-      { value: "amazon_ads", label: "Amazon Ads" },
+      { value: "amazon_ads", label: "Amazon Ads (short form)" },
+      { value: "amazon_onboarding", label: "Amazon onboarding" },
       { value: "shopify_intake", label: "Shopify intake" },
     ],
   },
@@ -28,6 +29,7 @@ const SOURCE_SITE_LABELS = {
   t2g: "Tech2Globe.com",
   t2gai: "T2G AI",
   shopify: "Tech2Globe.com",
+  amazon: "Tech2Globe.com",
   t2g_ai: "T2G AI",
   tech2globe_ai: "T2G AI",
   t2g_original: "Tech2Globe.com",
@@ -39,7 +41,8 @@ const FORM_TYPE_LABELS = {
   ai_contact: "AI contact",
   contact_page: "Contact page",
   service_form: "Service form",
-  amazon_ads: "Amazon Ads",
+  amazon_ads: "Amazon Ads (short form)",
+  amazon_onboarding: "Amazon onboarding",
   shopify_intake: "Shopify intake",
 };
 

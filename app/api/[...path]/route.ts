@@ -126,15 +126,15 @@ const leadSourceBaseUrl = (source: LeadSource) => {
 };
 
 const parseCompositeLeadId = (rawId: string) => {
-  const match = String(rawId).match(/^(t2g|t2gca|t2gai|shopify)-(\d+)$/i);
+  const match = String(rawId).match(/^(t2g|t2gca|t2gai|shopify|amazon)-(\d+)$/i);
   if (!match) return null;
   return {
-    source: normalizeSourceSite(match[1], "") as LeadSource | "shopify",
+    source: normalizeSourceSite(match[1], "") as LeadSource | "shopify" | "amazon",
     numericId: match[2],
   };
 };
 
-const toCompositeLeadId = (source: LeadSource | "shopify", id: unknown) =>
+const toCompositeLeadId = (source: LeadSource | "shopify" | "amazon", id: unknown) =>
   `${source}-${String(id)}`;
 
 const fetchLeadsFromBackend = async ({
@@ -149,9 +149,9 @@ const fetchLeadsFromBackend = async ({
   base: string;
   requestUrl: URL;
   headers: Headers;
-  sourceFallback: LeadSource | "shopify";
+  sourceFallback: LeadSource | "shopify" | "amazon";
   useInternalKey?: boolean;
-  idPrefix?: LeadSource | "shopify";
+  idPrefix?: LeadSource | "shopify" | "amazon";
   limit?: number;
 }) => {
   const url = withApiRoot(base, "leads");
@@ -185,7 +185,8 @@ const fetchLeadsFromBackend = async ({
   return rows.map((row: LeadRow) => {
     const source = normalizeSourceSite(row.source_site, sourceFallback) as
       | LeadSource
-      | "shopify";
+      | "shopify"
+      | "amazon";
     const numericId = row.id;
     return {
       ...row,
@@ -268,6 +269,17 @@ const collectLeadsForExport = async (request: NextRequest) => {
     });
   }
 
+  if (formType === "amazon_onboarding") {
+    return fetchLeadsFromBackend({
+      base: authBackendBaseUrl(),
+      requestUrl,
+      headers,
+      sourceFallback: "amazon",
+      idPrefix: "amazon",
+      limit: exportLimit,
+    });
+  }
+
   if (sourceSite === "t2gca" || sourceSite === "t2g" || sourceSite === "t2gai") {
     const base = leadSourceBaseUrl(sourceSite as LeadSource);
     return fetchLeadsFromBackend({
@@ -337,6 +349,24 @@ const handleCombinedLeadsExport = async (request: NextRequest) => {
     });
   }
 
+  if (formType === "amazon_onboarding") {
+    const backendUrl = withApiRoot(authBackendBaseUrl(), "leads/export");
+    backendUrl.search = requestUrl.search;
+    const headers = buildForwardHeaders(request);
+    const response = await fetch(backendUrl, {
+      method: "GET",
+      headers,
+      redirect: "manual",
+      cache: "no-store",
+    });
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  }
+
   const rows = await collectLeadsForExport(request);
   const csv = buildLeadsExportCsv(rows);
   const stamp = new Date().toISOString().slice(0, 10);
@@ -372,6 +402,30 @@ const handleCombinedLeadsList = async (request: NextRequest) => {
       headers,
       sourceFallback: "shopify",
       idPrefix: "shopify",
+    });
+
+    const total = rows.length;
+    const offset = (page - 1) * limit;
+    const data = rows.slice(offset, offset + limit);
+    return Response.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
+  }
+
+  if (formType === "amazon_onboarding") {
+    const rows = await fetchLeadsFromBackend({
+      base: authBackendBaseUrl(),
+      requestUrl,
+      headers,
+      sourceFallback: "amazon",
+      idPrefix: "amazon",
     });
 
     const total = rows.length;
@@ -472,7 +526,7 @@ const handleLeadDelete = async (request: NextRequest, rawId: string) => {
     );
   }
 
-  if (parsed.source === "shopify") {
+  if (parsed.source === "shopify" || parsed.source === "amazon") {
     const backendUrl = withApiRoot(
       authBackendBaseUrl(),
       `leads/${parsed.numericId}`,

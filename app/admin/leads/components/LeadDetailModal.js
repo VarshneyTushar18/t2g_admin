@@ -28,10 +28,26 @@ function productTypes(lead) {
   return types.length ? types.join(", ") : null;
 }
 
+function amazonServices(lead) {
+  const types = [
+    lead.svc_account_management ? "Account Management" : null,
+    lead.svc_ppc_management ? "PPC Management" : null,
+    lead.svc_listing_creation ? "Listing Creation" : null,
+    lead.svc_listing_optimization ? "Listing Optimization" : null,
+    lead.svc_a_plus_content ? "A+ Content" : null,
+    lead.svc_brand_store ? "Brand Store" : null,
+    lead.svc_inventory_management ? "Inventory Management" : null,
+    lead.svc_reimbursements ? "Reimbursements" : null,
+  ].filter(Boolean);
+  return types.length ? types.join(", ") : null;
+}
+
 export default function LeadDetailModal({ lead, onClose }) {
   if (!lead) return null;
 
   const isShopify = lead.lead_source === "shopify_intake";
+  const isAmazonOnboarding = lead.lead_source === "amazon_onboarding";
+  const isSpecialForm = isShopify || isAmazonOnboarding;
 
   return (
     <div className="leads-modal-backdrop" onClick={onClose} role="presentation">
@@ -59,13 +75,13 @@ export default function LeadDetailModal({ lead, onClose }) {
               <dt>Phone</dt>
               <dd>{lead.phone || "—"}</dd>
             </div>
-            {!isShopify && lead.company ? (
+            {!isSpecialForm && lead.company ? (
               <div>
                 <dt>Company</dt>
                 <dd>{lead.company}</dd>
               </div>
             ) : null}
-            {!isShopify && lead.ai_product ? (
+            {!isSpecialForm && lead.ai_product ? (
               <div>
                 <dt>AI product</dt>
                 <dd>{lead.ai_product}</dd>
@@ -100,7 +116,30 @@ export default function LeadDetailModal({ lead, onClose }) {
               </dd>
             </div>
 
-            {isShopify ? (
+            {isAmazonOnboarding ? (
+              <>
+                <DetailField label="Company" value={lead.company_name} />
+                <DetailField label="Brand" value={lead.brand_name} />
+                <DetailField label="Contact person" value={lead.contact_person} />
+                <DetailField label="Website" value={lead.website} />
+                <DetailField label="Seller Central URL" value={lead.seller_central_url} />
+                <DetailField label="Brand store URL" value={lead.brand_store_url} />
+                <DetailField label="Seller ID" value={lead.seller_id} />
+                <DetailField label="Marketplace" value={lead.marketplace} />
+                <DetailField label="Fulfilment" value={lead.fulfilment} />
+                <DetailField label="Top product URLs" value={lead.top_product_urls} full />
+                <DetailField label="Competitor URLs" value={lead.top_competitor_urls} full />
+                <DetailField label="Total SKUs" value={lead.total_skus} />
+                <DetailField label="Monthly revenue" value={lead.monthly_revenue} />
+                <DetailField label="Services required" value={amazonServices(lead)} full />
+                <DetailField label="Current ad spend" value={lead.current_ad_spend} />
+                <DetailField label="Target ad budget" value={lead.target_ad_budget} />
+                <DetailField label="Current ACOS" value={lead.current_acos} />
+                <DetailField label="Target ACOS" value={lead.target_acos} />
+                <DetailField label="Advertising challenges" value={lead.advertising_challenges} full />
+                <DetailField label="Business goals" value={lead.business_goals} full />
+              </>
+            ) : isShopify ? (
               <>
                 <DetailField label="Business name" value={lead.business_name} />
                 <DetailField label="Website" value={lead.website} />
