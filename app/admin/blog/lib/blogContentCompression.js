@@ -1,6 +1,7 @@
 /** Gzip large HTML in the browser so JSON posts stay under typical nginx limits (~1MB). */
 
-const COMPRESS_THRESHOLD = 350_000;
+/** Gzip early so JSON stays small on strict nginx (e.g. 1MB default). */
+const COMPRESS_THRESHOLD = 20_000;
 
 const bytesToBase64 = (bytes) => {
   let binary = "";

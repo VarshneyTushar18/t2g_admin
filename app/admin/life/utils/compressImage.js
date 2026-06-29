@@ -15,9 +15,9 @@ const canvasToBlob = (canvas, mime, quality) =>
     canvas.toBlob((blob) => resolve(blob), mime, quality);
   });
 
-export async function compressImageFile(file) {
+export async function compressImageFile(file, { force = false } = {}) {
   if (!file?.type?.startsWith("image/")) return file;
-  if (file.size <= MAX_BYTES) return file;
+  if (!force && file.size <= MAX_BYTES) return file;
 
   let bitmap;
   try {

@@ -39,20 +39,37 @@ const buildJsonPayload = async (form, featured_image) => {
 };
 
 const resolveFeaturedImage = async (form) => {
-  if (form.featuredImageFile instanceof File) {
-    const compressed = await compressImageFile(form.featuredImageFile);
+  if (!(form.featuredImageFile instanceof File)) {
+    return form.featured_image || "";
+  }
+
+  try {
+    const compressed = await compressImageFile(form.featuredImageFile, { force: true });
     const data = new FormData();
     data.append("featured_image", compressed);
     const res = await uploadWithProgress("/api/blog/admin/upload-featured", data);
     return res.url || res.data?.url || "";
+  } catch (err) {
+    throw new Error(
+      `Featured image upload failed: ${err.message || "unknown error"}`,
+    );
   }
-  return form.featured_image || "";
 };
 
 const saveBlogPost = async (form, method, path) => {
   const featured_image = await resolveFeaturedImage(form);
-  const payload = await buildJsonPayload(form, featured_image);
-  return method === "PUT" ? api.put(path, payload) : api.post(path, payload);
+  let payload;
+  try {
+    payload = await buildJsonPayload(form, featured_image);
+  } catch (err) {
+    throw new Error(`Could not prepare post content: ${err.message || "unknown error"}`);
+  }
+
+  try {
+    return method === "PUT" ? await api.put(path, payload) : await api.post(path, payload);
+  } catch (err) {
+    throw new Error(`Saving post failed: ${err.message || "unknown error"}`);
+  }
 };
 
 export async function getBlogPosts(params = {}) {
