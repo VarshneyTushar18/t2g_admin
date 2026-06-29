@@ -1,4 +1,6 @@
-import { api } from "@/lib/api";
+import { api, uploadWithProgress } from "@/lib/api";
+import { compressImageFile } from "../../life/utils/compressImage";
+import { packBlogContent } from "../lib/blogContentCompression";
 
 export const emptyBlogSeo = {
   meta_title: "",
@@ -15,25 +17,42 @@ export const emptyBlogSeo = {
   twitter_image: "",
 };
 
-const buildFormData = (form) => {
-  const data = new FormData();
-  data.append("title", form.title || "");
-  data.append("slug", form.slug || "");
-  data.append("excerpt", form.excerpt || "");
-  data.append("content", form.content || "");
-  data.append("status", form.status || "publish");
-  data.append("author_name", form.author_name || "");
-  data.append("categories", JSON.stringify(form.categories || []));
-  data.append("tags", JSON.stringify(form.tags || []));
-  data.append("seo", JSON.stringify(form.seo || emptyBlogSeo));
+/** Max featured image before client compression (must match backend BLOG_UPLOAD_LIMITS.fileSize). */
+export const BLOG_FEATURED_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 
+const buildJsonPayload = async (form, featured_image) => {
+  const packed = await packBlogContent(form.content || "");
+
+  return {
+    title: form.title || "",
+    slug: form.slug || "",
+    excerpt: form.excerpt || "",
+    status: form.status || "publish",
+    author_name: form.author_name || "",
+    featured_image: featured_image || "",
+    categories: form.categories || [],
+    tags: form.tags || [],
+    seo: form.seo || emptyBlogSeo,
+    content_encoding: packed.content_encoding,
+    content: packed.content,
+  };
+};
+
+const resolveFeaturedImage = async (form) => {
   if (form.featuredImageFile instanceof File) {
-    data.append("featured_image", form.featuredImageFile);
-  } else if (form.featured_image) {
-    data.append("featured_image", form.featured_image);
+    const compressed = await compressImageFile(form.featuredImageFile);
+    const data = new FormData();
+    data.append("featured_image", compressed);
+    const res = await uploadWithProgress("/api/blog/admin/upload-featured", data);
+    return res.url || res.data?.url || "";
   }
+  return form.featured_image || "";
+};
 
-  return data;
+const saveBlogPost = async (form, method, path) => {
+  const featured_image = await resolveFeaturedImage(form);
+  const payload = await buildJsonPayload(form, featured_image);
+  return method === "PUT" ? api.put(path, payload) : api.post(path, payload);
 };
 
 export async function getBlogPosts(params = {}) {
@@ -57,11 +76,11 @@ export async function getBlogPost(id) {
 }
 
 export async function createBlogPost(form) {
-  return api.upload("/api/blog", buildFormData(form));
+  return saveBlogPost(form, "POST", "/api/blog");
 }
 
 export async function updateBlogPost(id, form) {
-  return api.upload(`/api/blog/${id}`, buildFormData(form), "PUT");
+  return saveBlogPost(form, "PUT", `/api/blog/${id}`);
 }
 
 export async function deleteBlogPost(id) {
