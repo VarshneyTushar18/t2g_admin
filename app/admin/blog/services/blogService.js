@@ -47,7 +47,14 @@ const resolveFeaturedImage = async (form) => {
     const compressed = await compressImageFile(form.featuredImageFile, { force: true });
     const data = new FormData();
     data.append("featured_image", compressed);
-    const res = await uploadWithProgress("/api/blog/admin/upload-featured", data);
+    // Same-origin proxy keeps auth cookies (manageadmin → backend via /api/*).
+    const res = await uploadWithProgress(
+      "/api/blog/admin/upload-featured",
+      data,
+      "POST",
+      undefined,
+      { sameOrigin: true },
+    );
     return res.url || res.data?.url || "";
   } catch (err) {
     throw new Error(
