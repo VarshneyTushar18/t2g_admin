@@ -169,11 +169,18 @@ export default function LeadDetailModal({ lead, onClose }) {
                 <DetailField label="Additional notes" value={lead.notes} full />
               </>
             ) : isAmazonLeads ? (
-              <DetailField
-                label="Amazon store link"
-                value={lead.store_link || lead.message}
-                full
-              />
+              <>
+                <DetailField
+                  label="Amazon store link"
+                  value={lead.store_link}
+                  full
+                />
+                <DetailField
+                  label="Message"
+                  value={lead.message}
+                  full
+                />
+              </>
             ) : (
               <div className="leads-detail-full">
                 <dt>Message</dt>
