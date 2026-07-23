@@ -150,8 +150,8 @@ export default function LeadTable({
                   </span>
                 </td>
                 <td data-label="Message" className="leads-cell-message">
-                  <span className="leads-msg-preview" title={lead.message}>
-                    {lead.message || "—"}
+                  <span className="leads-msg-preview" title={lead.message || lead.store_link}>
+                    {lead.message || lead.store_link || "—"}
                   </span>
                 </td>
                 <td data-label="Web form" className="leads-cell-form">
