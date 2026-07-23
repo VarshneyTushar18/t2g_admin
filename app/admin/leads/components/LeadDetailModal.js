@@ -47,7 +47,9 @@ export default function LeadDetailModal({ lead, onClose }) {
 
   const isShopify = lead.lead_source === "shopify_intake";
   const isAmazonOnboarding = lead.lead_source === "amazon_onboarding";
-  const isSpecialForm = isShopify || isAmazonOnboarding;
+  const isAmazonLeads =
+    lead.lead_source === "amazon_leads" || lead.form_type === "amazon_leads";
+  const isSpecialForm = isShopify || isAmazonOnboarding || isAmazonLeads;
 
   return (
     <div className="leads-modal-backdrop" onClick={onClose} role="presentation">
@@ -166,6 +168,12 @@ export default function LeadDetailModal({ lead, onClose }) {
                 <DetailField label="Amazon monthly revenue" value={lead.amazon_revenue} />
                 <DetailField label="Additional notes" value={lead.notes} full />
               </>
+            ) : isAmazonLeads ? (
+              <DetailField
+                label="Amazon store link"
+                value={lead.store_link || lead.message}
+                full
+              />
             ) : (
               <div className="leads-detail-full">
                 <dt>Message</dt>
