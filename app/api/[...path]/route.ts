@@ -622,6 +622,299 @@ const handleLeadDelete = async (request: NextRequest, rawId: string) => {
   });
 };
 
+type LeadStatsPayload = {
+  totals?: {
+    total?: number;
+    today?: number;
+    thisWeek?: number;
+    thisMonth?: number;
+    uniqueCompanies?: number;
+    uniqueCountries?: number;
+  };
+  byFormType?: { key: string; count: number }[];
+  byCompany?: { name: string; count: number }[];
+  byCountry?: { name: string; count: number }[];
+  byDay?: { date: string; count: number }[];
+  byMonth?: { month: string; count: number }[];
+  bySourcePage?: { name: string; count: number }[];
+  recentLeads?: {
+    id: number | string;
+    name: string;
+    email: string;
+    company?: string | null;
+    country?: string | null;
+    form_type?: string;
+    source_page?: string | null;
+    created_at?: string;
+  }[];
+};
+
+const emptyStats = (): LeadStatsPayload => ({
+  totals: {
+    total: 0,
+    today: 0,
+    thisWeek: 0,
+    thisMonth: 0,
+    uniqueCompanies: 0,
+    uniqueCountries: 0,
+  },
+  byFormType: [],
+  byCompany: [],
+  byCountry: [],
+  byDay: [],
+  byMonth: [],
+  bySourcePage: [],
+  recentLeads: [],
+});
+
+const fetchStatsFromBackend = async ({
+  base,
+  requestUrl,
+  headers,
+  useInternalKey = false,
+}: {
+  base: string;
+  requestUrl: URL;
+  headers: Headers;
+  useInternalKey?: boolean;
+}): Promise<LeadStatsPayload> => {
+  const url = withApiRoot(base, "leads/stats");
+  const params = new URLSearchParams(requestUrl.search);
+  params.delete("source_site");
+  url.search = params.toString();
+
+  const forwardHeaders = new Headers(headers);
+  const internalKey = adminInternalApiKey();
+  if (useInternalKey && internalKey) {
+    forwardHeaders.set("x-admin-internal-key", internalKey);
+  }
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: forwardHeaders,
+    redirect: "manual",
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Leads stats failed (${res.status}): ${text.slice(0, 160)}`);
+  }
+
+  const json = await res.json();
+  return (json?.data as LeadStatsPayload) || emptyStats();
+};
+
+const mergeCountLists = <T extends Record<string, unknown>>(
+  lists: T[][],
+  keyField: keyof T,
+  limit?: number,
+) => {
+  const map = new Map<string, number>();
+  for (const list of lists) {
+    for (const item of list || []) {
+      const key = String(item[keyField] || "").trim();
+      if (!key) continue;
+      const count = Number((item as { count?: number }).count) || 0;
+      map.set(key, (map.get(key) || 0) + count);
+    }
+  }
+  const merged = [...map.entries()]
+    .map(([key, count]) => ({ [keyField]: key, count }) as T)
+    .sort(
+      (a, b) =>
+        (Number((b as { count?: number }).count) || 0) -
+        (Number((a as { count?: number }).count) || 0),
+    );
+  return typeof limit === "number" ? merged.slice(0, limit) : merged;
+};
+
+const mergeDayLists = (lists: { date: string; count: number }[][]) => {
+  const map = new Map<string, number>();
+  for (const list of lists) {
+    for (const item of list || []) {
+      if (!item?.date) continue;
+      map.set(item.date, (map.get(item.date) || 0) + (Number(item.count) || 0));
+    }
+  }
+  return [...map.entries()]
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+};
+
+const mergeMonthLists = (lists: { month: string; count: number }[][]) => {
+  const map = new Map<string, number>();
+  for (const list of lists) {
+    for (const item of list || []) {
+      if (!item?.month) continue;
+      map.set(item.month, (map.get(item.month) || 0) + (Number(item.count) || 0));
+    }
+  }
+  return [...map.entries()]
+    .map(([month, count]) => ({ month, count }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+};
+
+const buildMergedInsights = ({
+  total,
+  byFormType,
+  byCountry,
+  byCompany,
+  byDay,
+  bySourcePage,
+  bySourceSite,
+}: {
+  total: number;
+  byFormType: { key: string; count: number }[];
+  byCountry: { name: string; count: number }[];
+  byCompany: { name: string; count: number }[];
+  byDay: { date: string; count: number }[];
+  bySourcePage: { name: string; count: number }[];
+  bySourceSite: { key: string; label: string; count: number }[];
+}) => {
+  const top = <T,>(list: T[]) => (list.length ? list[0] : null);
+  const peakDay = [...byDay].sort((a, b) => b.count - a.count)[0] || null;
+  const days = Math.max(byDay.length, 1);
+  return {
+    topForm: top(byFormType),
+    topCountry: top(byCountry),
+    topCompany: top(byCompany),
+    topSourcePage: top(bySourcePage),
+    topWebsite: top(bySourceSite),
+    peakDay,
+    avgDaily: total > 0 ? Math.round((total / days) * 10) / 10 : 0,
+  };
+};
+
+const SOURCE_SITE_LABELS: Record<string, string> = {
+  t2g: "Tech2Globe.com",
+  t2gca: "Tech2Globe.ca",
+  t2gai: "T2G AI",
+};
+
+const handleCombinedLeadsStats = async (request: NextRequest) => {
+  const requestUrl = new URL(request.url);
+  const headers = buildForwardHeaders(request);
+  const sourceSite = normalizeSourceSite(
+    requestUrl.searchParams.get("source_site"),
+    "",
+  );
+
+  const fetchOne = async (
+    source: LeadSource,
+  ): Promise<{ source: LeadSource; stats: LeadStatsPayload }> => {
+    try {
+      const stats = await fetchStatsFromBackend({
+        base: leadSourceBaseUrl(source),
+        requestUrl,
+        headers,
+        useInternalKey: source === "t2gai",
+      });
+      return { source, stats };
+    } catch (err) {
+      console.error(`Leads stats fetch failed (${source}):`, err);
+      return { source, stats: emptyStats() };
+    }
+  };
+
+  let results: { source: LeadSource; stats: LeadStatsPayload }[];
+
+  if (sourceSite === "t2gca" || sourceSite === "t2g" || sourceSite === "t2gai") {
+    results = [await fetchOne(sourceSite as LeadSource)];
+  } else {
+    results = await Promise.all([
+      fetchOne("t2g"),
+      fetchOne("t2gca"),
+      fetchOne("t2gai"),
+    ]);
+  }
+
+  const totals = {
+    total: 0,
+    today: 0,
+    thisWeek: 0,
+    thisMonth: 0,
+    uniqueCompanies: 0,
+    uniqueCountries: 0,
+  };
+
+  const bySourceSite = results.map(({ source, stats }) => {
+    const count = Number(stats.totals?.total) || 0;
+    totals.total += count;
+    totals.today += Number(stats.totals?.today) || 0;
+    totals.thisWeek += Number(stats.totals?.thisWeek) || 0;
+    totals.thisMonth += Number(stats.totals?.thisMonth) || 0;
+    totals.uniqueCompanies += Number(stats.totals?.uniqueCompanies) || 0;
+    return {
+      key: source,
+      label: SOURCE_SITE_LABELS[source] || source,
+      count,
+    };
+  });
+
+  const byFormType = mergeCountLists(
+    results.map((r) => r.stats.byFormType || []),
+    "key",
+  ) as { key: string; count: number }[];
+
+  const byCompany = mergeCountLists(
+    results.map((r) => r.stats.byCompany || []),
+    "name",
+    25,
+  ) as { name: string; count: number }[];
+
+  const byCountry = mergeCountLists(
+    results.map((r) => r.stats.byCountry || []),
+    "name",
+    20,
+  ) as { name: string; count: number }[];
+
+  const byDay = mergeDayLists(results.map((r) => r.stats.byDay || []));
+  const byMonth = mergeMonthLists(results.map((r) => r.stats.byMonth || []));
+  const bySourcePage = mergeCountLists(
+    results.map((r) => r.stats.bySourcePage || []),
+    "name",
+    15,
+  ) as { name: string; count: number }[];
+
+  const recentLeads = results
+    .flatMap((r) => r.stats.recentLeads || [])
+    .sort(
+      (a, b) =>
+        new Date(String(b.created_at || 0)).getTime() -
+        new Date(String(a.created_at || 0)).getTime(),
+    )
+    .slice(0, 15);
+
+  totals.uniqueCountries = byCountry.length;
+
+  const insights = buildMergedInsights({
+    total: totals.total,
+    byFormType,
+    byCountry,
+    byCompany,
+    byDay,
+    bySourcePage,
+    bySourceSite,
+  });
+
+  return Response.json({
+    success: true,
+    data: {
+      totals,
+      bySourceSite,
+      byFormType,
+      byCompany,
+      byCountry,
+      byDay,
+      byMonth,
+      bySourcePage,
+      recentLeads,
+      insights,
+    },
+  });
+};
+
 const proxy = async (request: NextRequest, context: RouteContext) => {
   try {
     const { path } = await context.params;
@@ -635,6 +928,14 @@ const proxy = async (request: NextRequest, context: RouteContext) => {
       path[1] === "export"
     ) {
       return await handleCombinedLeadsExport(request);
+    }
+
+    if (
+      request.method === "GET" &&
+      path[0] === "leads" &&
+      path[1] === "stats"
+    ) {
+      return await handleCombinedLeadsStats(request);
     }
 
     if (request.method === "DELETE" && path[0] === "leads" && path.length === 2) {
