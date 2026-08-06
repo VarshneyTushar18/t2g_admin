@@ -705,28 +705,28 @@ const fetchStatsFromBackend = async ({
   return (json?.data as LeadStatsPayload) || emptyStats();
 };
 
-const mergeCountLists = <T extends Record<string, unknown>>(
-  lists: T[][],
-  keyField: keyof T,
+type NamedCount = { name: string; count: number };
+type KeyedCount = { key: string; count: number };
+
+const mergeCountLists = (
+  lists: Array<Array<{ count?: number } & Record<string, unknown>>>,
+  keyField: "name" | "key",
   limit?: number,
-) => {
+): NamedCount[] | KeyedCount[] => {
   const map = new Map<string, number>();
   for (const list of lists) {
     for (const item of list || []) {
       const key = String(item[keyField] || "").trim();
       if (!key) continue;
-      const count = Number((item as { count?: number }).count) || 0;
+      const count = Number(item.count) || 0;
       map.set(key, (map.get(key) || 0) + count);
     }
   }
   const merged = [...map.entries()]
-    .map(([key, count]) => ({ [keyField]: key, count }) as T)
-    .sort(
-      (a, b) =>
-        (Number((b as { count?: number }).count) || 0) -
-        (Number((a as { count?: number }).count) || 0),
-    );
-  return typeof limit === "number" ? merged.slice(0, limit) : merged;
+    .map(([key, count]) => ({ [keyField]: key, count }))
+    .sort((a, b) => b.count - a.count);
+  const sliced = typeof limit === "number" ? merged.slice(0, limit) : merged;
+  return sliced as NamedCount[] | KeyedCount[];
 };
 
 const mergeDayLists = (lists: { date: string; count: number }[][]) => {
