@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { deleteLead, getLeads } from "../services/leadService";
+
+function readFiltersFromParams(searchParams) {
+  return {
+    search: searchParams.get("search") || "",
+    formType: searchParams.get("form_type") || "",
+    sourceSite: searchParams.get("source_site") || "",
+    dateFrom: searchParams.get("date_from") || "",
+    dateTo: searchParams.get("date_to") || "",
+  };
+}
 
 const DEFAULT_PAGINATION = {
   page: 1,
@@ -9,18 +20,32 @@ const DEFAULT_PAGINATION = {
 };
 
 export function useLeads() {
+  const searchParams = useSearchParams();
+  const initialFilters = readFiltersFromParams(searchParams);
+
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [formType, setFormType] = useState("");
-  const [sourceSite, setSourceSite] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState(initialFilters.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialFilters.search);
+  const [formType, setFormType] = useState(initialFilters.formType);
+  const [sourceSite, setSourceSite] = useState(initialFilters.sourceSite);
+  const [dateFrom, setDateFrom] = useState(initialFilters.dateFrom);
+  const [dateTo, setDateTo] = useState(initialFilters.dateTo);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
+
+  useEffect(() => {
+    const next = readFiltersFromParams(searchParams);
+    setSearch(next.search);
+    setDebouncedSearch(next.search);
+    setFormType(next.formType);
+    setSourceSite(next.sourceSite);
+    setDateFrom(next.dateFrom);
+    setDateTo(next.dateTo);
+    setPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     const t = setTimeout(() => {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Area,
   AreaChart,
@@ -93,9 +94,45 @@ function shortUrl(url) {
   }
 }
 
-function StatCard({ label, value, hint, icon: Icon, accent }) {
-  return (
-    <div className={`ld-kpi-card ld-kpi-${accent || "indigo"}`}>
+function formatDateParam(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function todayParam() {
+  return formatDateParam(new Date());
+}
+
+function startOfWeekParam() {
+  const date = new Date();
+  const weekday = date.getDay();
+  const diff = weekday === 0 ? 6 : weekday - 1;
+  date.setDate(date.getDate() - diff);
+  return formatDateParam(date);
+}
+
+function startOfMonthParam() {
+  const date = new Date();
+  return formatDateParam(new Date(date.getFullYear(), date.getMonth(), 1));
+}
+
+function buildLeadsUrl({ formType = "", sourceSite = "", dateFrom = "", dateTo = "", search = "" } = {}) {
+  const params = new URLSearchParams();
+  if (search?.trim()) params.set("search", search.trim());
+  if (formType) params.set("form_type", formType);
+  if (sourceSite) params.set("source_site", sourceSite);
+  if (dateFrom) params.set("date_from", dateFrom);
+  if (dateTo) params.set("date_to", dateTo);
+  const qs = params.toString();
+  return `/admin/leads${qs ? `?${qs}` : ""}`;
+}
+
+function StatCard({ label, value, hint, icon: Icon, accent, href, linkTitle }) {
+  const className = `ld-kpi-card ld-kpi-${accent || "indigo"}${href ? " ld-kpi-clickable" : ""}`;
+  const body = (
+    <>
       <div className="ld-kpi-icon">
         <Icon size={22} strokeWidth={2.2} />
       </div>
@@ -104,8 +141,18 @@ function StatCard({ label, value, hint, icon: Icon, accent }) {
         <strong className="ld-kpi-value">{Number(value || 0).toLocaleString()}</strong>
         {hint ? <span className="ld-kpi-hint">{hint}</span> : null}
       </div>
-    </div>
+    </>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className={className} title={linkTitle || "View leads"}>
+        {body}
+      </Link>
+    );
+  }
+
+  return <div className={className}>{body}</div>;
 }
 
 function ChartCard({ title, subtitle, children, empty, wide, tall }) {
@@ -185,6 +232,9 @@ export default function LeadsDashboardPage() {
   const topCountryLabel = insights.topCountry?.name || "—";
   const topCompanyLabel = insights.topCompany?.name || "—";
   const topWebsiteLabel = insights.topWebsite?.label || "—";
+  const today = todayParam();
+  const baseFilters = { formType, sourceSite };
+  const rangeFilters = { ...baseFilters, dateFrom, dateTo };
 
   return (
     <div className="leads-page ld-page">
@@ -272,10 +322,39 @@ export default function LeadsDashboardPage() {
       {error && <div className="leads-alert-error">{error}</div>}
 
       <div className={`ld-kpi-grid${loading ? " ld-loading" : ""}`}>
-        <StatCard label="Total leads" value={total} hint="All sources" icon={Users} accent="indigo" />
-        <StatCard label="Today" value={totals.today} icon={CalendarDays} accent="sky" />
-        <StatCard label="This week" value={totals.thisWeek} icon={TrendingUp} accent="emerald" />
-        <StatCard label="This month" value={totals.thisMonth} icon={Layers} accent="violet" />
+        <StatCard
+          label="Total leads"
+          value={total}
+          hint="All sources"
+          icon={Users}
+          accent="indigo"
+          href={buildLeadsUrl(rangeFilters)}
+          linkTitle="View all matching leads"
+        />
+        <StatCard
+          label="Today"
+          value={totals.today}
+          icon={CalendarDays}
+          accent="sky"
+          href={buildLeadsUrl({ ...baseFilters, dateFrom: today, dateTo: today })}
+          linkTitle="View today's leads"
+        />
+        <StatCard
+          label="This week"
+          value={totals.thisWeek}
+          icon={TrendingUp}
+          accent="emerald"
+          href={buildLeadsUrl({ ...baseFilters, dateFrom: startOfWeekParam(), dateTo: today })}
+          linkTitle="View this week's leads"
+        />
+        <StatCard
+          label="This month"
+          value={totals.thisMonth}
+          icon={Layers}
+          accent="violet"
+          href={buildLeadsUrl({ ...baseFilters, dateFrom: startOfMonthParam(), dateTo: today })}
+          linkTitle="View this month's leads"
+        />
         <StatCard
           label="Avg / active day"
           value={insights.avgDaily || 0}
@@ -289,6 +368,19 @@ export default function LeadsDashboardPage() {
           hint="Named prospects"
           icon={Building2}
           accent="rose"
+          href={
+            insights.topCompany?.name
+              ? buildLeadsUrl({
+                  ...rangeFilters,
+                  search: insights.topCompany.name,
+                })
+              : undefined
+          }
+          linkTitle={
+            insights.topCompany?.name
+              ? `Search leads for company: ${insights.topCompany.name}`
+              : undefined
+          }
         />
         <StatCard
           label="Countries"
@@ -296,6 +388,19 @@ export default function LeadsDashboardPage() {
           hint="Geographic reach"
           icon={MapPin}
           accent="teal"
+          href={
+            insights.topCountry?.name
+              ? buildLeadsUrl({
+                  ...rangeFilters,
+                  search: insights.topCountry.name,
+                })
+              : undefined
+          }
+          linkTitle={
+            insights.topCountry?.name
+              ? `Search leads for country: ${insights.topCountry.name}`
+              : undefined
+          }
         />
         <StatCard
           label="Top website"
@@ -303,6 +408,19 @@ export default function LeadsDashboardPage() {
           hint={topWebsiteLabel}
           icon={Globe2}
           accent="indigo"
+          href={
+            insights.topWebsite?.key
+              ? buildLeadsUrl({
+                  ...rangeFilters,
+                  sourceSite: insights.topWebsite.key,
+                })
+              : undefined
+          }
+          linkTitle={
+            insights.topWebsite?.key
+              ? `View leads from ${topWebsiteLabel}`
+              : undefined
+          }
         />
       </div>
 
