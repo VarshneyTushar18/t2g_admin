@@ -71,6 +71,10 @@ export default function AdminHomePage() {
                   <KeyIcon />
                   Security
                 </Link>
+                <Link href="/admin/connect" className="admin-home-btn admin-home-btn-ghost">
+                  <ConnectIcon />
+                  Connect
+                </Link>
               </>
             )}
             <button
@@ -189,6 +193,15 @@ function KeyIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ConnectIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

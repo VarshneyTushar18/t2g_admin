@@ -98,6 +98,8 @@ const buildForwardHeaders = (request: NextRequest) => {
   headers.delete("content-length");
   headers.delete("connection");
   headers.delete("expect");
+  // Admin UI uses cookies only — never forward API keys to the backend
+  headers.delete("x-api-key");
   return headers;
 };
 

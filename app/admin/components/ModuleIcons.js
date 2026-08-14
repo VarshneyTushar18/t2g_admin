@@ -43,6 +43,12 @@ const icons = {
       <path d="M8 8h8M8 12h8" strokeLinecap="round" />
     </svg>
   ),
+  connect: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 };
 
 export function ModuleIcon({ moduleKey, className }) {
@@ -88,5 +94,10 @@ export const MODULE_THEMES = {
     accent: "#0d9488",
     glow: "rgba(13, 148, 136, 0.35)",
     bg: "linear-gradient(135deg, #ccfbf1 0%, #f0fdfa 100%)",
+  },
+  connect: {
+    accent: "#0891b2",
+    glow: "rgba(8, 145, 178, 0.35)",
+    bg: "linear-gradient(135deg, #cffafe 0%, #ecfeff 100%)",
   },
 };
