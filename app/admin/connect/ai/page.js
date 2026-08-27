@@ -8,8 +8,8 @@ import {
   getAiSettings,
   saveAiSettings,
   testAiSettings,
-} from "./services/aiIntegrationsService";
-import "../connect.css";
+} from "../services/aiIntegrationsService";
+import "../../connect.css";
 
 const EMPTY = {
   provider: "openrouter",
