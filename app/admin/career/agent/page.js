@@ -27,6 +27,7 @@ export default function CareerAgentPage() {
     useAuth();
 
   const [threads, setThreads] = useState([]);
+  const [openTabs, setOpenTabs] = useState([]);
   const [activeThreadId, setActiveThreadId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -35,12 +36,14 @@ export default function CareerAgentPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState("");
   const [agentReady, setAgentReady] = useState(null);
+  const [agentModel, setAgentModel] = useState("");
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [guidelines, setGuidelines] = useState("");
   const [guidelinesDraft, setGuidelinesDraft] = useState("");
   const [savingGuidelines, setSavingGuidelines] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const startedFreshRef = useRef(false);
   const canPostJobs = canAdd("career") && !isReadOnly("career");
   const canEditGuidelines = canEdit("career") && !isReadOnly("career");
 
@@ -53,21 +56,27 @@ export default function CareerAgentPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
+  const openThreadTab = useCallback((thread) => {
+    if (!thread?.id) return;
+    setOpenTabs((prev) => {
+      if (prev.some((t) => t.id === thread.id)) return prev;
+      return [thread, ...prev].slice(0, 8);
+    });
+    setActiveThreadId(thread.id);
+  }, []);
+
   const loadThreads = useCallback(async () => {
     setLoadingThreads(true);
     setError("");
     try {
       const list = await agentApi.listThreads();
       setThreads(list);
-      if (!activeThreadId && list.length > 0) {
-        setActiveThreadId(list[0].id);
-      }
     } catch (err) {
       setError(err.message || "Failed to load conversations");
     } finally {
       setLoadingThreads(false);
     }
-  }, [activeThreadId]);
+  }, []);
 
   const loadMessages = useCallback(
     async (threadId) => {
@@ -93,9 +102,18 @@ export default function CareerAgentPage() {
     if (authLoading || !canView("career")) return;
     agentApi
       .getAgentStatus()
-      .then((s) => setAgentReady(s.configured))
+      .then((s) => {
+        setAgentReady(s.configured);
+        setAgentModel(s.model || "");
+      })
       .catch(() => setAgentReady(false));
     loadThreads();
+    if (!startedFreshRef.current) {
+      startedFreshRef.current = true;
+      setActiveThreadId(null);
+      setMessages([]);
+      setOpenTabs([]);
+    }
     agentApi
       .getGuidelines()
       .then((g) => {
@@ -107,17 +125,22 @@ export default function CareerAgentPage() {
 
   useEffect(() => {
     if (activeThreadId) loadMessages(activeThreadId);
+    else setMessages([]);
   }, [activeThreadId, loadMessages]);
 
-  const handleNewChat = async () => {
+  const handleNewChat = () => {
     setError("");
-    try {
-      const thread = await agentApi.createThread();
-      setThreads((prev) => [thread, ...prev]);
-      setActiveThreadId(thread.id);
+    setActiveThreadId(null);
+    setMessages([]);
+    setInput("");
+  };
+
+  const closeTab = (threadId, e) => {
+    e?.stopPropagation();
+    setOpenTabs((prev) => prev.filter((t) => t.id !== threadId));
+    if (activeThreadId === threadId) {
+      setActiveThreadId(null);
       setMessages([]);
-    } catch (err) {
-      setError(err.message || "Could not start new chat");
     }
   };
 
@@ -136,7 +159,7 @@ export default function CareerAgentPage() {
         const thread = await agentApi.createThread(text.slice(0, 60));
         threadId = thread.id;
         setThreads((prev) => [thread, ...prev]);
-        setActiveThreadId(threadId);
+        openThreadTab(thread);
       }
 
       setMessages((prev) => [
@@ -198,6 +221,7 @@ export default function CareerAgentPage() {
     try {
       await agentApi.deleteThread(threadId);
       setThreads((prev) => prev.filter((t) => t.id !== threadId));
+      setOpenTabs((prev) => prev.filter((t) => t.id !== threadId));
       if (activeThreadId === threadId) {
         setActiveThreadId(null);
         setMessages([]);
@@ -290,6 +314,45 @@ export default function CareerAgentPage() {
         .ba-thread.active { background: #dbeafe; color: #1e40af; font-weight: 600; }
         .ba-thread-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .ba-thread-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
+        .ba-tabs {
+          display: flex;
+          gap: 6px;
+          padding: 8px 12px 0;
+          overflow-x: auto;
+          border-bottom: 1px solid #e2e8f0;
+          background: #f8fafc;
+        }
+        .ba-tab {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          max-width: 180px;
+          padding: 8px 10px;
+          border: 1px solid #e2e8f0;
+          border-bottom: none;
+          border-radius: 8px 8px 0 0;
+          background: #fff;
+          font-size: 12px;
+          cursor: pointer;
+          color: #475569;
+        }
+        .ba-tab.active { color: #1e40af; font-weight: 700; border-color: #bfdbfe; }
+        .ba-tab-close {
+          border: none;
+          background: transparent;
+          color: #94a3b8;
+          cursor: pointer;
+          font-size: 14px;
+          line-height: 1;
+          padding: 0;
+        }
+        .ba-fresh {
+          padding: 8px 16px;
+          font-size: 12px;
+          color: #64748b;
+          border-bottom: 1px solid #e2e8f0;
+          background: #fff;
+        }
         .ba-main { display: flex; flex-direction: column; background: #fff; min-height: 480px; }
         .ba-status {
           padding: 10px 16px;
@@ -487,7 +550,7 @@ export default function CareerAgentPage() {
               <aside className="ba-sidebar">
                 <div className="ba-sidebar-head">
                   <button type="button" className="ba-new-btn" onClick={handleNewChat}>
-                    + New conversation
+                    + New chat
                   </button>
                 </div>
                 <div className="ba-thread-list">
@@ -496,7 +559,7 @@ export default function CareerAgentPage() {
                   )}
                   {!loadingThreads && threads.length === 0 && (
                     <p style={{ padding: 12, fontSize: 13, color: "#64748b" }}>
-                      No conversations yet. Start a new chat.
+                      No saved chats yet. Start typing in a new chat.
                     </p>
                   )}
                   {threads.map((t) => (
@@ -504,7 +567,7 @@ export default function CareerAgentPage() {
                       <button
                         type="button"
                         className={`ba-thread ${activeThreadId === t.id ? "active" : ""}`}
-                        onClick={() => setActiveThreadId(t.id)}
+                        onClick={() => openThreadTab(t)}
                       >
                         <div className="ba-thread-title">
                           {t.title || "New conversation"}
@@ -525,6 +588,40 @@ export default function CareerAgentPage() {
               </aside>
 
               <div className="ba-main">
+                <div className="ba-tabs">
+                  <button
+                    type="button"
+                    className={`ba-tab ${!activeThreadId ? "active" : ""}`}
+                    onClick={handleNewChat}
+                  >
+                    New chat
+                  </button>
+                  {openTabs.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`ba-tab ${activeThreadId === t.id ? "active" : ""}`}
+                      onClick={() => setActiveThreadId(t.id)}
+                    >
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {t.title || "Chat"}
+                      </span>
+                      <span
+                        className="ba-tab-close"
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => closeTab(t.id, e)}
+                      >
+                        ×
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="ba-fresh">
+                  {activeThreadId
+                    ? "Viewing a saved chat — open New chat for a fresh session."
+                    : "Fresh chat — each page visit starts blank. History stays in the left sidebar."}
+                </div>
                 <div className="ba-status">
                   <span>
                     {user?.email && <>Signed in as {user.email} · </>}
@@ -533,11 +630,16 @@ export default function CareerAgentPage() {
                     ) : (
                       <span className="ba-badge draft">View only</span>
                     )}
+                    {agentModel ? (
+                      <span className="ba-badge draft" style={{ marginLeft: 6 }}>
+                        {agentModel}
+                      </span>
+                    ) : null}
                   </span>
                   <span>
                     {agentReady === false && (
                       <span className="ba-badge warn">
-                        Agent offline — set OPENROUTER_API_KEY on server
+                        Agent offline — set key in Connect → AI Integrations
                       </span>
                     )}
                     {agentReady === true && (
