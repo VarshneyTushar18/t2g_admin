@@ -207,6 +207,7 @@ export default function JobsAdminPage() {
                     <th>Experience</th>
                     <th>Positions</th>
                     <th>Location</th>
+                    <th>Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -219,6 +220,32 @@ export default function JobsAdminPage() {
                         <td>{job.experience}</td>
                         <td>{job.positions}</td>
                         <td>{job.location}</td>
+                        <td>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "3px 8px",
+                              borderRadius: 999,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              background:
+                                job.status === "active"
+                                  ? "#f0fdf4"
+                                  : job.status === "pending_approval"
+                                    ? "#fff7ed"
+                                    : "#fef2f2",
+                              color:
+                                job.status === "active"
+                                  ? "#15803d"
+                                  : job.status === "pending_approval"
+                                    ? "#c2410c"
+                                    : "#b91c1c",
+                            }}
+                          >
+                            {job.status || "—"}
+                          </span>
+                        </td>
 
                         <td>
                           <div className="actions">
@@ -252,7 +279,7 @@ export default function JobsAdminPage() {
 
                       {openRow === job.id && (
                         <tr>
-                          <td colSpan="5">
+                          <td colSpan="6">
                             <div className="job-details">
                               <table>
                                 <tbody>
