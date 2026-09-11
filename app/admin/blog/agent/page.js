@@ -71,10 +71,16 @@ function postsFromMessage(m) {
 const IMPROVE_PROMPT_BASE =
   "Please improve the last blog post you created. Fix formatting so no raw ** or * asterisks show on the live page. Keep clear H2 sections and short paragraphs. Use update_blog_post with the existing post id — do not create a duplicate.";
 
+function snapMixPercent(value, fallback = 70) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.round(Math.min(100, Math.max(0, n)) / 5) * 5;
+}
+
 function buildImprovePrompt(humanizePercent) {
-  const human = Math.min(100, Math.max(0, Number(humanizePercent) || 70));
+  const human = snapMixPercent(humanizePercent, 70);
   const ai = 100 - human;
-  return `${IMPROVE_PROMPT_BASE} Rewrite to ~${human}% humanized / ${ai}% AI-structured voice: contractions, varied sentence length, concrete examples, no ChatGPT phrases (delve, digital landscape, furthermore, in conclusion).`;
+  return `${IMPROVE_PROMPT_BASE} Rewrite to exactly ${human}% humanized / ${ai}% AI-structured voice: contractions, varied sentence length, concrete examples, no ChatGPT phrases (delve, digital landscape, furthermore, in conclusion).`;
 }
 export default function BlogAgentPage() {
   const router = useRouter();
@@ -172,13 +178,19 @@ export default function BlogAgentPage() {
       setMessages([]);
       setOpenTabs([]);
     }
-    agentApi.getGuidelines().then((g) => {
+    agentApi.getGuidelines().then(async (g) => {
       setGuidelines(g?.content || "");
       setGuidelinesDraft(g?.content || "");
-      const h = Number(g?.humanize_percent);
-      const human = Number.isFinite(h) ? Math.min(100, Math.max(0, Math.round(h))) : 70;
-      setHumanizePercent(human);
-      setHumanizeDraft(human);
+      setHumanizePercent(70);
+      setHumanizeDraft(70);
+      const saved = snapMixPercent(g?.humanize_percent, 70);
+      if (saved !== 70 && canEdit("blog") && !isReadOnly("blog")) {
+        try {
+          await agentApi.updateGuidelines({ humanizePercent: 70 });
+        } catch {
+          /* ignore */
+        }
+      }
     }).catch(() => {});
   }, [authLoading, canView, loadThreads]);
 
@@ -350,14 +362,12 @@ export default function BlogAgentPage() {
     try {
       const g = await agentApi.updateGuidelines({
         content: guidelinesDraft,
-        humanizePercent: humanizeDraft,
+        humanizePercent: 70,
       });
       setGuidelines(g.content);
       setGuidelinesDraft(g.content);
-      const h = Number(g?.humanize_percent);
-      const human = Number.isFinite(h) ? Math.min(100, Math.max(0, Math.round(h))) : humanizeDraft;
-      setHumanizePercent(human);
-      setHumanizeDraft(human);
+      setHumanizePercent(70);
+      setHumanizeDraft(70);
     } catch (err) {
       setError(err.message || "Could not save guidelines");
     } finally {
@@ -371,10 +381,9 @@ export default function BlogAgentPage() {
     setError("");
     try {
       const g = await agentApi.updateGuidelines({
-        humanizePercent: humanizeDraft,
+        humanizePercent: snapMixPercent(humanizeDraft, 70),
       });
-      const h = Number(g?.humanize_percent);
-      const human = Number.isFinite(h) ? Math.min(100, Math.max(0, Math.round(h))) : humanizeDraft;
+      const human = snapMixPercent(g?.humanize_percent, humanizeDraft);
       setHumanizePercent(human);
       setHumanizeDraft(human);
       if (g?.content != null) {
@@ -902,60 +911,13 @@ export default function BlogAgentPage() {
         <div className="ba-mix-head">
           <div className="ba-mix-title">Content mix</div>
           <div className="ba-mix-values">
-            <span className="ai">AI {100 - humanizeDraft}%</span>
+            <span className="ai">AI 30%</span>
             {" · "}
-            <span className="human">Humanize {humanizeDraft}%</span>
+            <span className="human">Humanize 70%</span>
           </div>
         </div>
-        <input
-          className="ba-mix-slider"
-          type="range"
-          min={0}
-          max={100}
-          step={5}
-          value={humanizeDraft}
-          disabled={!canEditGuidelines}
-          onChange={(e) => setHumanizeDraft(Number(e.target.value))}
-          aria-label="Humanize percent"
-        />
-        <div className="ba-mix-labels">
-          <span>More AI structure</span>
-          <span>More humanized</span>
-        </div>
-        <div className="ba-mix-actions">
-          <div className="ba-mix-presets">
-            {[
-              { human: 30, label: "AI 70%" },
-              { human: 50, label: "50 / 50" },
-              { human: 70, label: "Human 70%" },
-              { human: 85, label: "Human 85%" },
-            ].map((p) => (
-              <button
-                key={p.human}
-                type="button"
-                className={`ba-mix-preset ${humanizeDraft === p.human ? "active" : ""}`}
-                disabled={!canEditGuidelines}
-                onClick={() => setHumanizeDraft(p.human)}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          {canEditGuidelines && (
-            <button
-              type="button"
-              className="ba-new-btn"
-              style={{ width: "auto", padding: "8px 16px" }}
-              onClick={handleSaveMix}
-              disabled={savingMix || humanizeDraft === humanizePercent}
-            >
-              {savingMix ? "Saving…" : "Save mix"}
-            </button>
-          )}
-        </div>
-        <p className="ba-mix-hint">
-          Saved mix is used on every new blog draft and rewrite. Current saved: AI{" "}
-          {100 - humanizePercent}% · Humanize {humanizePercent}%.
+        <p className="ba-mix-hint" style={{ marginTop: 10 }}>
+          Fixed mix: <strong>AI 30%</strong> · <strong>Humanize 70%</strong> on every draft and rewrite.
         </p>
       </div>
 
@@ -977,8 +939,7 @@ export default function BlogAgentPage() {
               style={{ marginTop: 8, width: "auto", padding: "8px 16px" }}
               onClick={handleSaveGuidelines}
               disabled={
-                savingGuidelines ||
-                (guidelinesDraft === guidelines && humanizeDraft === humanizePercent)
+                savingGuidelines || guidelinesDraft === guidelines
               }
             >
               {savingGuidelines ? "Saving…" : "Save guidelines"}
