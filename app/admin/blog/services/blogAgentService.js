@@ -42,7 +42,18 @@ export async function getGuidelines() {
   return data.guidelines;
 }
 
-export async function updateGuidelines(content) {
-  const data = await api.put(`${BASE}/guidelines`, { content });
+export async function updateGuidelines(payload) {
+  const body =
+    typeof payload === "string"
+      ? { content: payload }
+      : {
+          ...(payload?.content !== undefined
+            ? { content: payload.content }
+            : {}),
+          ...(payload?.humanizePercent !== undefined
+            ? { humanizePercent: payload.humanizePercent }
+            : {}),
+        };
+  const data = await api.put(`${BASE}/guidelines`, body);
   return data.guidelines;
 }

@@ -6,7 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import ReadOnlyBanner from "../../components/ReadOnlyBanner";
 import BlogEditorShell from "../components/BlogEditorShell";
 import * as agentApi from "../services/blogAgentService";
-import { getBlogPost } from "../services/blogService";
+import { getBlogPost, getBlogPosts } from "../services/blogService";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -27,26 +27,55 @@ function postsFromMessage(m) {
   if (Array.isArray(fromTool) && fromTool.length) return fromTool;
 
   const content = String(m?.content || "");
-  const idMatch = content.match(/\bid[:\s#]*(\d{1,10})\b/i);
-  if (!idMatch) return [];
   const slugMatch = content.match(/blogs\/([a-z0-9-]+)/i);
   const statusMatch = content.match(/\b(draft|pending|publish|published)\b/i);
   let status = statusMatch ? statusMatch[1].toLowerCase() : "draft";
   if (status === "published") status = "publish";
-  return [
-    {
-      id: Number(idMatch[1]),
-      slug: slugMatch?.[1] || null,
-      status,
-      title: null,
-      url: slugMatch ? `https://www.tech2globe.com/blogs/${slugMatch[1]}` : null,
-    },
-  ];
+
+  // Prefer explicit id: 123 / id #123 / Post ID 123
+  const idMatch =
+    content.match(/\bid[:\s#]*(\d{1,10})\b/i) ||
+    content.match(/\bpost\s*id[:\s#]*(\d{1,10})\b/i) ||
+    content.match(/\((\d{1,10})\)\s*(?:created|saved|draft)/i);
+
+  if (idMatch) {
+    return [
+      {
+        id: Number(idMatch[1]),
+        slug: slugMatch?.[1] || null,
+        status,
+        title: null,
+        url: slugMatch
+          ? `https://www.tech2globe.com/blogs/${slugMatch[1]}`
+          : null,
+      },
+    ];
+  }
+
+  // Slug-only fallback — Preview will resolve id via admin list search
+  if (slugMatch?.[1]) {
+    return [
+      {
+        id: null,
+        slug: slugMatch[1],
+        status,
+        title: null,
+        url: `https://www.tech2globe.com/blogs/${slugMatch[1]}`,
+      },
+    ];
+  }
+
+  return [];
 }
 
-const IMPROVE_PROMPT =
-  "Please improve the last blog post you created. Fix formatting so no raw ** or * asterisks show on the live page. Rewrite it in a top HubSpot/Medium-style pattern: clear H2 sections, short paragraphs, bullet lists, human expert tone. Use update_blog_post with the existing post id to replace the draft — do not create a duplicate.";
+const IMPROVE_PROMPT_BASE =
+  "Please improve the last blog post you created. Fix formatting so no raw ** or * asterisks show on the live page. Keep clear H2 sections and short paragraphs. Use update_blog_post with the existing post id — do not create a duplicate.";
 
+function buildImprovePrompt(humanizePercent) {
+  const human = Math.min(100, Math.max(0, Number(humanizePercent) || 70));
+  const ai = 100 - human;
+  return `${IMPROVE_PROMPT_BASE} Rewrite to ~${human}% humanized / ${ai}% AI-structured voice: contractions, varied sentence length, concrete examples, no ChatGPT phrases (delve, digital landscape, furthermore, in conclusion).`;
+}
 export default function BlogAgentPage() {
   const router = useRouter();
   const { loading: authLoading, canView, canAdd, canEdit, isReadOnly, user } =
@@ -66,7 +95,10 @@ export default function BlogAgentPage() {
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [guidelines, setGuidelines] = useState("");
   const [guidelinesDraft, setGuidelinesDraft] = useState("");
+  const [humanizePercent, setHumanizePercent] = useState(70);
+  const [humanizeDraft, setHumanizeDraft] = useState(70);
   const [savingGuidelines, setSavingGuidelines] = useState(false);
+  const [savingMix, setSavingMix] = useState(false);
   const [feedbackByMsg, setFeedbackByMsg] = useState({});
   const [feedbackBusy, setFeedbackBusy] = useState({});
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -143,6 +175,10 @@ export default function BlogAgentPage() {
     agentApi.getGuidelines().then((g) => {
       setGuidelines(g?.content || "");
       setGuidelinesDraft(g?.content || "");
+      const h = Number(g?.humanize_percent);
+      const human = Number.isFinite(h) ? Math.min(100, Math.max(0, Math.round(h))) : 70;
+      setHumanizePercent(human);
+      setHumanizeDraft(human);
     }).catch(() => {});
   }, [authLoading, canView, loadThreads]);
 
@@ -196,6 +232,17 @@ export default function BlogAgentPage() {
       scrollToBottom();
 
       const result = await agentApi.sendMessage(threadId, trimmed);
+      const apiPosts = Array.isArray(result.posts) ? result.posts : [];
+      const assistant = {
+        ...result.assistant,
+        tool_output: {
+          ...(result.assistant?.tool_output || {}),
+          posts:
+            apiPosts.length > 0
+              ? apiPosts
+              : result.assistant?.tool_output?.posts || [],
+        },
+      };
       setMessages((prev) => [
         ...prev.filter((m) => !String(m.id).startsWith("tmp-u-")),
         {
@@ -204,11 +251,15 @@ export default function BlogAgentPage() {
           content: trimmed,
           created_at: new Date().toISOString(),
         },
-        result.assistant,
+        assistant,
       ]);
       loadThreads();
       scrollToBottom();
-    } catch (err) {
+
+      const previewTarget = apiPosts[0] || postsFromMessage(assistant)[0];
+      if (previewTarget?.id || previewTarget?.slug) {
+        openPreview(previewTarget);
+      }    } catch (err) {
       setError(err.message || "Agent failed");
       if (threadId) loadMessages(threadId);
     } finally {
@@ -246,7 +297,7 @@ export default function BlogAgentPage() {
       setFeedbackByMsg((prev) => ({ ...prev, [messageId]: rating }));
 
       if (rating === -1) {
-        await sendText(IMPROVE_PROMPT);
+        await sendText(buildImprovePrompt(humanizePercent));
       }
     } catch (err) {
       setError(err.message || "Feedback failed");
@@ -260,13 +311,25 @@ export default function BlogAgentPage() {
   };
 
   const openPreview = async (postMeta) => {
-    if (!postMeta?.id) return;
+    if (!postMeta?.id && !postMeta?.slug) return;
     setPreviewOpen(true);
     setPreviewLoading(true);
     setPreviewError("");
     setPreviewPost(null);
     try {
-      const post = await getBlogPost(postMeta.id);
+      let postId = postMeta.id;
+      if (!postId && postMeta.slug) {
+        const { items } = await getBlogPosts({
+          search: postMeta.slug,
+          limit: 10,
+        });
+        const match =
+          (items || []).find((p) => p.slug === postMeta.slug) ||
+          (items || [])[0];
+        postId = match?.id;
+      }
+      if (!postId) throw new Error("Post not found for preview");
+      const post = await getBlogPost(postId);
       if (!post) throw new Error("Post not found");
       setPreviewPost(post);
     } catch (err) {
@@ -285,13 +348,42 @@ export default function BlogAgentPage() {
   const handleSaveGuidelines = async () => {
     setSavingGuidelines(true);
     try {
-      const g = await agentApi.updateGuidelines(guidelinesDraft);
+      const g = await agentApi.updateGuidelines({
+        content: guidelinesDraft,
+        humanizePercent: humanizeDraft,
+      });
       setGuidelines(g.content);
       setGuidelinesDraft(g.content);
+      const h = Number(g?.humanize_percent);
+      const human = Number.isFinite(h) ? Math.min(100, Math.max(0, Math.round(h))) : humanizeDraft;
+      setHumanizePercent(human);
+      setHumanizeDraft(human);
     } catch (err) {
       setError(err.message || "Could not save guidelines");
     } finally {
       setSavingGuidelines(false);
+    }
+  };
+
+  const handleSaveMix = async () => {
+    if (!canEditGuidelines) return;
+    setSavingMix(true);
+    setError("");
+    try {
+      const g = await agentApi.updateGuidelines({
+        humanizePercent: humanizeDraft,
+      });
+      const h = Number(g?.humanize_percent);
+      const human = Number.isFinite(h) ? Math.min(100, Math.max(0, Math.round(h))) : humanizeDraft;
+      setHumanizePercent(human);
+      setHumanizeDraft(human);
+      if (g?.content != null) {
+        setGuidelines(g.content);
+      }
+    } catch (err) {
+      setError(err.message || "Could not save content mix");
+    } finally {
+      setSavingMix(false);
     }
   };
 
@@ -578,6 +670,84 @@ export default function BlogAgentPage() {
           font-family: inherit;
           margin-top: 8px;
         }
+        .ba-mix-card {
+          margin-bottom: 16px;
+          padding: 14px 16px;
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+        }
+        .ba-mix-head {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .ba-mix-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #0f172a;
+        }
+        .ba-mix-values {
+          font-size: 13px;
+          font-weight: 600;
+          color: #334155;
+        }
+        .ba-mix-values span.ai {
+          color: #4f46e5;
+        }
+        .ba-mix-values span.human {
+          color: #047857;
+        }
+        .ba-mix-slider {
+          width: 100%;
+          margin-top: 12px;
+          accent-color: #4f46e5;
+        }
+        .ba-mix-labels {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 4px;
+          font-size: 11px;
+          color: #94a3b8;
+        }
+        .ba-mix-hint {
+          margin: 8px 0 0;
+          font-size: 12px;
+          color: #64748b;
+          line-height: 1.4;
+        }
+        .ba-mix-actions {
+          margin-top: 10px;
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .ba-mix-presets {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .ba-mix-preset {
+          font-size: 12px;
+          padding: 4px 10px;
+          border-radius: 999px;
+          border: 1px solid #cbd5e1;
+          background: #fff;
+          color: #475569;
+          cursor: pointer;
+        }
+        .ba-mix-preset.active {
+          border-color: #4f46e5;
+          color: #4f46e5;
+          background: #eef2ff;
+        }
+        .ba-mix-preset:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
         .ba-del-thread {
           float: right;
           font-size: 11px;
@@ -728,6 +898,67 @@ export default function BlogAgentPage() {
         </button>
       </div>
 
+      <div className="ba-mix-card">
+        <div className="ba-mix-head">
+          <div className="ba-mix-title">Content mix</div>
+          <div className="ba-mix-values">
+            <span className="ai">AI {100 - humanizeDraft}%</span>
+            {" · "}
+            <span className="human">Humanize {humanizeDraft}%</span>
+          </div>
+        </div>
+        <input
+          className="ba-mix-slider"
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={humanizeDraft}
+          disabled={!canEditGuidelines}
+          onChange={(e) => setHumanizeDraft(Number(e.target.value))}
+          aria-label="Humanize percent"
+        />
+        <div className="ba-mix-labels">
+          <span>More AI structure</span>
+          <span>More humanized</span>
+        </div>
+        <div className="ba-mix-actions">
+          <div className="ba-mix-presets">
+            {[
+              { human: 30, label: "AI 70%" },
+              { human: 50, label: "50 / 50" },
+              { human: 70, label: "Human 70%" },
+              { human: 85, label: "Human 85%" },
+            ].map((p) => (
+              <button
+                key={p.human}
+                type="button"
+                className={`ba-mix-preset ${humanizeDraft === p.human ? "active" : ""}`}
+                disabled={!canEditGuidelines}
+                onClick={() => setHumanizeDraft(p.human)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {canEditGuidelines && (
+            <button
+              type="button"
+              className="ba-new-btn"
+              style={{ width: "auto", padding: "8px 16px" }}
+              onClick={handleSaveMix}
+              disabled={savingMix || humanizeDraft === humanizePercent}
+            >
+              {savingMix ? "Saving…" : "Save mix"}
+            </button>
+          )}
+        </div>
+        <p className="ba-mix-hint">
+          Saved mix is used on every new blog draft and rewrite. Current saved: AI{" "}
+          {100 - humanizePercent}% · Humanize {humanizePercent}%.
+        </p>
+      </div>
+
       {showGuidelines && (
         <div className="ba-guidelines-panel">
           <strong>Brand brain</strong>
@@ -745,7 +976,10 @@ export default function BlogAgentPage() {
               className="ba-new-btn"
               style={{ marginTop: 8, width: "auto", padding: "8px 16px" }}
               onClick={handleSaveGuidelines}
-              disabled={savingGuidelines || guidelinesDraft === guidelines}
+              disabled={
+                savingGuidelines ||
+                (guidelinesDraft === guidelines && humanizeDraft === humanizePercent)
+              }
             >
               {savingGuidelines ? "Saving…" : "Save guidelines"}
             </button>
@@ -860,7 +1094,7 @@ export default function BlogAgentPage() {
                     &quot;Write a blog about Amazon PPC best practices, author Tarun, with images&quot;
                   </p>
                   <p style={{ marginTop: 8, fontSize: 13 }}>
-                    Cover + in-article images are added automatically. Drafts include a full-page Preview button.
+                    After a draft is created, Preview opens automatically. You can also use the Preview page button.
                   </p>
                   <p style={{ marginTop: 8, fontSize: 13 }}>
                     👍 Good saves feedback. 👎 Bad asks the agent to rewrite and improve the post.
@@ -879,7 +1113,7 @@ export default function BlogAgentPage() {
                     <div className="ba-msg-actions">
                       {posts.map((p) => (
                         <button
-                          key={`preview-${p.id}`}
+                          key={`preview-${p.id || p.slug}`}
                           type="button"
                           className="ba-fb-btn preview"
                           onClick={() => openPreview(p)}
@@ -887,7 +1121,7 @@ export default function BlogAgentPage() {
                           Preview page
                         </button>
                       ))}
-                      {posts[0]?.id && (
+                      {(posts[0]?.id || posts[0]?.slug) && posts[0]?.id ? (
                         <a
                           className="ba-fb-btn"
                           href={`/admin/blog/edit/${posts[0].id}`}
@@ -897,7 +1131,7 @@ export default function BlogAgentPage() {
                         >
                           Open editor
                         </a>
-                      )}
+                      ) : null}
                       <button
                         type="button"
                         className={`ba-fb-btn ${rated === 1 ? "active-good" : ""}`}
