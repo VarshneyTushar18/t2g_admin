@@ -4,7 +4,11 @@ const BASE = "/api/agents/automations";
 
 export async function getSettings() {
   const data = await api.get(`${BASE}/settings`);
-  return data.settings;
+  return {
+    settings: data.settings,
+    publicApiConfigured: Boolean(data.publicApiConfigured),
+    publicApiBase: data.publicApiBase || null,
+  };
 }
 
 export async function saveSettings(payload) {

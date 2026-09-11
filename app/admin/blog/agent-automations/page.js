@@ -48,6 +48,32 @@ function statusBadgeClass(status) {
   return "aa-badge";
 }
 
+function friendlyStatus(status) {
+  if (status === "draft_ready") return "Ready";
+  if (status === "processing") return "Writing…";
+  if (status === "failed") return "Failed";
+  if (status === "queued") return "Waiting";
+  return status || "—";
+}
+
+const MODES = [
+  {
+    id: "pending_email",
+    title: "Ask me first (recommended)",
+    desc: "AI writes the blog → email with Preview, Yes publish, or No keep draft",
+  },
+  {
+    id: "draft_only",
+    title: "Save as draft only",
+    desc: "AI writes the blog quietly. No email. You publish later from Admin.",
+  },
+  {
+    id: "auto_publish",
+    title: "Publish automatically",
+    desc: "AI writes and goes live immediately. You only get a notify email.",
+  },
+];
+
 export default function AgentAutomationsPage() {
   const { loading: authLoading, canView, canEdit, isReadOnly, user } = useAuth();
   const [settings, setSettings] = useState(DEFAULTS);
@@ -58,6 +84,8 @@ export default function AgentAutomationsPage() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [publicApiConfigured, setPublicApiConfigured] = useState(true);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [topicForm, setTopicForm] = useState({
     topic: "",
     notes: "",
@@ -73,7 +101,8 @@ export default function AgentAutomationsPage() {
     setLoading(true);
     setError("");
     try {
-      const [s, t] = await Promise.all([api.getSettings(), api.listTopics()]);
+      const [settingsRes, t] = await Promise.all([api.getSettings(), api.listTopics()]);
+      const s = settingsRes.settings || settingsRes;
       setSettings({
         enabled: !!s.enabled,
         timezone: s.timezone || "Asia/Kolkata",
@@ -88,6 +117,11 @@ export default function AgentAutomationsPage() {
             ? s.approval_emails.join(", ")
             : user?.email || "",
       });
+      setPublicApiConfigured(
+        settingsRes.publicApiConfigured !== undefined
+          ? Boolean(settingsRes.publicApiConfigured)
+          : true,
+      );
       setTopics(t);
     } catch (err) {
       setError(err.message || "Failed to load automation settings");
@@ -118,7 +152,7 @@ export default function AgentAutomationsPage() {
       .map((s) => s.trim())
       .filter(Boolean);
     if (needsEmail && !emails.length) {
-      setError("Add at least one sample blog email");
+      setError("Add your email so we can send Yes / No / Preview links");
       setSaving(false);
       return;
     }
@@ -135,7 +169,9 @@ export default function AgentAutomationsPage() {
           : prev.approval_emails,
       }));
       setSuccess(
-        "Settings saved. Blog samples will go to: " + emails.join(", "),
+        settings.mode === "pending_email"
+          ? `Saved. When a blog is ready, we’ll email: ${emails.join(", ")}`
+          : "Settings saved.",
       );
     } catch (err) {
       setError(err.message || "Failed to save settings");
@@ -153,13 +189,15 @@ export default function AgentAutomationsPage() {
       .map((s) => s.trim())
       .filter(Boolean);
     if (!emails.length) {
-      setError("Enter a sample blog email first");
+      setError("Enter your email first");
       setTestingEmail(false);
       return;
     }
     try {
       const result = await api.sendTestEmail(emails);
-      setSuccess(`Test email sent to: ${(result.sentTo || emails).join(", ")}`);
+      setSuccess(
+        `Test sent to ${(result.sentTo || emails).join(", ")}. Open it and try Preview / Yes / No.`,
+      );
     } catch (err) {
       setError(err.message || "Test email failed");
     } finally {
@@ -198,7 +236,7 @@ export default function AgentAutomationsPage() {
         tags: "",
         scheduled_for: "",
       }));
-      setSuccess("Topic added to queue");
+      setSuccess("Topic added. Turn automation on (or click Run now) to write it.");
     } catch (err) {
       setError(err.message || "Could not add topic");
     }
@@ -221,7 +259,7 @@ export default function AgentAutomationsPage() {
     try {
       await api.runNow();
       await load();
-      setSuccess("Run finished. Check topic queue for results.");
+      setSuccess("Done. Check the topic list below.");
     } catch (err) {
       setError(err.message || "Run now failed");
     } finally {
@@ -483,11 +521,75 @@ export default function AgentAutomationsPage() {
           color: #64748b;
           font-size: 14px;
         }
+        .aa-steps {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+          margin: 0 0 18px;
+        }
+        .aa-step {
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 12px 14px;
+          font-size: 13px;
+          color: #475569;
+        }
+        .aa-step strong {
+          display: block;
+          color: #0f172a;
+          margin-bottom: 4px;
+          font-size: 13px;
+        }
+        .aa-mode-list {
+          display: grid;
+          gap: 8px;
+          margin: 4px 0 14px;
+        }
+        .aa-mode {
+          text-align: left;
+          width: 100%;
+          border: 1px solid #e2e8f0;
+          background: #fff;
+          border-radius: 12px;
+          padding: 12px 14px;
+          cursor: pointer;
+        }
+        .aa-mode:hover { border-color: #bfdbfe; background: #f8fbff; }
+        .aa-mode.on {
+          border-color: #93c5fd;
+          background: #eff6ff;
+          box-shadow: inset 0 0 0 1px #93c5fd;
+        }
+        .aa-mode:disabled { opacity: 0.6; cursor: not-allowed; }
+        .aa-mode-title {
+          font-weight: 700;
+          font-size: 14px;
+          color: #0f172a;
+          margin: 0 0 4px;
+        }
+        .aa-mode-desc {
+          margin: 0;
+          font-size: 12px;
+          color: #64748b;
+          line-height: 1.45;
+        }
+        .aa-linkish {
+          background: none;
+          border: none;
+          color: #2563eb;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+          margin: 8px 0 12px;
+        }
         @media (max-width: 768px) {
           .aa-page { padding: 16px; }
           .aa-card { padding: 16px; }
           .aa-fields,
-          .aa-topic-form { grid-template-columns: 1fr; }
+          .aa-topic-form,
+          .aa-steps { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -496,26 +598,47 @@ export default function AgentAutomationsPage() {
           <Link href="/admin/blog" className="aa-back">
             ← Back to blog
           </Link>
-          <h1 className="aa-title">Agent Automations</h1>
+          <h1 className="aa-title">Auto blogs</h1>
           <p className="aa-subtitle">
-            Set schedule, sample email, and topics. Cron follows what you save here.
+            Add topics → AI writes on schedule → you get email to Preview / Publish / Keep draft.
           </p>
+
+          <div className="aa-steps">
+            <div className="aa-step">
+              <strong>1. Add topics</strong>
+              What should AI write about?
+            </div>
+            <div className="aa-step">
+              <strong>2. Set schedule + email</strong>
+              When to write, and who gets Yes/No.
+            </div>
+            <div className="aa-step">
+              <strong>3. Approve from email</strong>
+              Preview the page, then Publish or Keep draft.
+            </div>
+          </div>
 
           {isReadOnly("blog") && <ReadOnlyBanner moduleKey="blog" />}
           {error && <div className="aa-alert err">{error}</div>}
+          {!publicApiConfigured && (
+            <div className="aa-alert err">
+              Email buttons need a public server URL. Ask tech to set{" "}
+              <code>BACKEND_PUBLIC_URL</code> (same as Career job approvals).
+            </div>
+          )}
           {success && <div className="aa-alert ok">{success}</div>}
 
           <div className="aa-grid">
             <section className="aa-card">
               <div className="aa-card-head">
                 <div>
-                  <h2>Automation Settings</h2>
+                  <h2>How it runs</h2>
                   <p>{statusText}</p>
                 </div>
                 <span
                   className={`aa-badge ${settings.enabled ? "ok" : "warn"}`}
                 >
-                  {settings.enabled ? "Enabled" : "Disabled"}
+                  {settings.enabled ? "On" : "Off"}
                 </span>
               </div>
 
@@ -535,42 +658,90 @@ export default function AgentAutomationsPage() {
                       }
                       disabled={!canEditBlog}
                     />
-                    Enable automation
+                    Turn automation on
                   </label>
 
-                  <div className="aa-fields">
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>
+                      After AI writes a blog…
+                    </div>
+                    <div className="aa-mode-list">
+                      {MODES.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={`aa-mode ${settings.mode === m.id ? "on" : ""}`}
+                          disabled={!canEditBlog}
+                          onClick={() =>
+                            setSettings((prev) => ({ ...prev, mode: m.id }))
+                          }
+                        >
+                          <div className="aa-mode-title">{m.title}</div>
+                          <p className="aa-mode-desc">{m.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {settings.mode !== "draft_only" && (
+                    <div className="aa-email-box">
+                      <h3>Send approval email to</h3>
+                      <p className="hint">
+                        You’ll get <strong>Preview</strong>, <strong>Yes — Publish</strong>, and{" "}
+                        <strong>No — Keep draft</strong> (same idea as Career jobs).
+                      </p>
+                      <label className="aa-field">
+                        Your email
+                        <input
+                          className="aa-input"
+                          type="text"
+                          value={settings.approval_emails}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              approval_emails: e.target.value,
+                            }))
+                          }
+                          disabled={!canEditBlog}
+                          placeholder="you@tech2globe.com"
+                        />
+                      </label>
+                      <div className="aa-actions" style={{ marginTop: 12 }}>
+                        <button
+                          type="button"
+                          className="aa-btn secondary"
+                          onClick={testEmail}
+                          disabled={!canEditBlog || testingEmail}
+                        >
+                          {testingEmail ? "Sending…" : "Send me a test email"}
+                        </button>
+                        {user?.email &&
+                          !String(settings.approval_emails)
+                            .toLowerCase()
+                            .includes(String(user.email).toLowerCase()) && (
+                            <button
+                              type="button"
+                              className="aa-btn secondary"
+                              disabled={!canEditBlog}
+                              onClick={() =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  approval_emails: prev.approval_emails
+                                    ? `${prev.approval_emails}, ${user.email}`
+                                    : user.email,
+                                }))
+                              }
+                            >
+                              Use my login email
+                            </button>
+                          )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="aa-fields" style={{ marginTop: 8 }}>
                     <label className="aa-field">
-                      Start window
-                      <input
-                        className="aa-input"
-                        type="datetime-local"
-                        value={settings.window_start}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            window_start: e.target.value,
-                          }))
-                        }
-                        disabled={!canEditBlog}
-                      />
-                    </label>
-                    <label className="aa-field">
-                      End window
-                      <input
-                        className="aa-input"
-                        type="datetime-local"
-                        value={settings.window_end}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            window_end: e.target.value,
-                          }))
-                        }
-                        disabled={!canEditBlog}
-                      />
-                    </label>
-                    <label className="aa-field">
-                      Run time
+                      Write blogs at
                       <input
                         className="aa-input"
                         type="time"
@@ -585,7 +756,7 @@ export default function AgentAutomationsPage() {
                       />
                     </label>
                     <label className="aa-field">
-                      Posts per run
+                      How many each day
                       <input
                         className="aa-input"
                         type="number"
@@ -602,7 +773,7 @@ export default function AgentAutomationsPage() {
                       />
                     </label>
                     <div className="aa-field full">
-                      <span>Run days</span>
+                      <span>Which days</span>
                       <div className="aa-days">
                         {DAYS.map((d) => (
                           <button
@@ -617,86 +788,50 @@ export default function AgentAutomationsPage() {
                         ))}
                       </div>
                     </div>
-                    <label className="aa-field full">
-                      Mode
-                      <select
-                        className="aa-select"
-                        value={settings.mode}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            mode: e.target.value,
-                          }))
-                        }
-                        disabled={!canEditBlog}
-                      >
-                        <option value="draft_only">Draft only</option>
-                        <option value="pending_email">
-                          Pending + email sample
-                        </option>
-                        <option value="auto_publish">
-                          Auto publish + email sample
-                        </option>
-                      </select>
-                    </label>
                   </div>
 
-                  <div className="aa-email-box">
-                    <h3>Sample blog email</h3>
-                    <p className="hint">
-                      When a blog is generated, the preview sample is sent here.
-                      Use commas for multiple addresses.
-                    </p>
-                    <label className="aa-field">
-                      Email address(es)
-                      <input
-                        className="aa-input"
-                        type="text"
-                        value={settings.approval_emails}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            approval_emails: e.target.value,
-                          }))
-                        }
-                        disabled={!canEditBlog}
-                        placeholder="you@tech2globe.com, editor@tech2globe.com"
-                      />
-                    </label>
-                    {settings.mode === "draft_only" && (
-                      <p className="hint" style={{ marginTop: 8, marginBottom: 0 }}>
-                        Draft-only mode does not send emails.
-                      </p>
-                    )}
-                    <div className="aa-actions" style={{ marginTop: 12 }}>
-                      <button
-                        type="button"
-                        className="aa-btn secondary"
-                        onClick={testEmail}
-                        disabled={!canEditBlog || testingEmail}
-                      >
-                        {testingEmail ? "Sending…" : "Send test email"}
-                      </button>
-                      {user?.email &&
-                        !settings.approval_emails.includes(user.email) && (
-                          <button
-                            type="button"
-                            className="aa-btn secondary"
-                            disabled={!canEditBlog}
-                            onClick={() =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                approval_emails: prev.approval_emails
-                                  ? `${prev.approval_emails}, ${user.email}`
-                                  : user.email,
-                              }))
-                            }
-                          >
-                            Use my email
-                          </button>
-                        )}
+                  <button
+                    type="button"
+                    className="aa-linkish"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                  >
+                    {showAdvanced ? "Hide extra options" : "Show extra options"}
+                  </button>
+
+                  {showAdvanced && (
+                    <div className="aa-fields">
+                      <label className="aa-field">
+                        Start from (optional)
+                        <input
+                          className="aa-input"
+                          type="datetime-local"
+                          value={settings.window_start}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              window_start: e.target.value,
+                            }))
+                          }
+                          disabled={!canEditBlog}
+                        />
+                      </label>
+                      <label className="aa-field">
+                        Stop after (optional)
+                        <input
+                          className="aa-input"
+                          type="datetime-local"
+                          value={settings.window_end}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              window_end: e.target.value,
+                            }))
+                          }
+                          disabled={!canEditBlog}
+                        />
+                      </label>
                     </div>
-                  </div>
+                  )}
 
                   <div className="aa-actions">
                     <button
@@ -705,7 +840,7 @@ export default function AgentAutomationsPage() {
                       onClick={saveSettings}
                       disabled={!canEditBlog || saving}
                     >
-                      {saving ? "Saving…" : "Save Settings"}
+                      {saving ? "Saving…" : "Save"}
                     </button>
                     <button
                       type="button"
@@ -713,7 +848,7 @@ export default function AgentAutomationsPage() {
                       onClick={runNow}
                       disabled={!canEditBlog || runningNow}
                     >
-                      {runningNow ? "Running…" : "Run Now"}
+                      {runningNow ? "Writing…" : "Write 1 now"}
                     </button>
                   </div>
                 </>
@@ -723,10 +858,10 @@ export default function AgentAutomationsPage() {
             <section className="aa-card">
               <div className="aa-card-head">
                 <div>
-                  <h2>Topic Queue</h2>
-                  <p>Add topics for the agent to write when the schedule runs.</p>
+                  <h2>Topics to write</h2>
+                  <p>Type a topic and add it. AI picks from this list.</p>
                 </div>
-                <span className="aa-badge info">{topics.length} topics</span>
+                <span className="aa-badge info">{topics.length}</span>
               </div>
 
               <form className="aa-topic-form" onSubmit={addTopic}>
@@ -734,7 +869,7 @@ export default function AgentAutomationsPage() {
                   Topic
                   <input
                     className="aa-input"
-                    placeholder="e.g. Amazon PPC best practices 2026"
+                    placeholder="e.g. Amazon PPC tips for beginners"
                     value={topicForm.topic}
                     onChange={(e) =>
                       setTopicForm((p) => ({ ...p, topic: e.target.value }))
@@ -744,7 +879,7 @@ export default function AgentAutomationsPage() {
                   />
                 </label>
                 <label className="aa-field">
-                  Author
+                  Author name
                   <input
                     className="aa-input"
                     value={topicForm.author_name}
@@ -758,10 +893,10 @@ export default function AgentAutomationsPage() {
                   />
                 </label>
                 <label className="aa-field">
-                  Tags
+                  Tags (optional)
                   <input
                     className="aa-input"
-                    placeholder="amazon, ppc, seo"
+                    placeholder="amazon, ppc"
                     value={topicForm.tags}
                     onChange={(e) =>
                       setTopicForm((p) => ({ ...p, tags: e.target.value }))
@@ -770,43 +905,13 @@ export default function AgentAutomationsPage() {
                   />
                 </label>
                 <label className="aa-field full">
-                  Notes / instructions
+                  Extra notes (optional)
                   <textarea
                     className="aa-textarea"
-                    placeholder="Optional writing instructions"
+                    placeholder="Anything special to include?"
                     value={topicForm.notes}
                     onChange={(e) =>
                       setTopicForm((p) => ({ ...p, notes: e.target.value }))
-                    }
-                    disabled={!canEditBlog}
-                  />
-                </label>
-                <label className="aa-field">
-                  Priority
-                  <input
-                    className="aa-input"
-                    type="number"
-                    value={topicForm.priority}
-                    onChange={(e) =>
-                      setTopicForm((p) => ({
-                        ...p,
-                        priority: Number(e.target.value || 0),
-                      }))
-                    }
-                    disabled={!canEditBlog}
-                  />
-                </label>
-                <label className="aa-field">
-                  Schedule for (optional)
-                  <input
-                    className="aa-input"
-                    type="datetime-local"
-                    value={topicForm.scheduled_for}
-                    onChange={(e) =>
-                      setTopicForm((p) => ({
-                        ...p,
-                        scheduled_for: e.target.value,
-                      }))
                     }
                     disabled={!canEditBlog}
                   />
@@ -817,7 +922,7 @@ export default function AgentAutomationsPage() {
                     className="aa-btn primary"
                     disabled={!canEditBlog}
                   >
-                    Add Topic
+                    Add topic
                   </button>
                 </div>
               </form>
@@ -828,10 +933,8 @@ export default function AgentAutomationsPage() {
                     <tr>
                       <th>Topic</th>
                       <th>Status</th>
-                      <th>Priority</th>
-                      <th>Scheduled</th>
                       <th>Result</th>
-                      <th>Action</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -847,21 +950,17 @@ export default function AgentAutomationsPage() {
                         </td>
                         <td>
                           <span className={statusBadgeClass(t.status)}>
-                            {t.status}
+                            {friendlyStatus(t.status)}
                           </span>
                         </td>
-                        <td>{t.priority}</td>
                         <td>
-                          {t.scheduled_for
-                            ? new Date(t.scheduled_for).toLocaleString()
-                            : "—"}
-                        </td>
-                        <td>
-                          {t.generated_post_id
-                            ? `Post #${t.generated_post_id}${
-                                t.generated_slug ? ` · ${t.generated_slug}` : ""
-                              }`
-                            : t.error_message || "—"}
+                          {t.generated_post_id ? (
+                            <Link href={`/admin/blog/edit/${t.generated_post_id}`}>
+                              Open draft #{t.generated_post_id}
+                            </Link>
+                          ) : (
+                            t.error_message || "—"
+                          )}
                         </td>
                         <td>
                           <button
@@ -870,17 +969,16 @@ export default function AgentAutomationsPage() {
                             onClick={() => removeTopic(t.id)}
                             disabled={!canEditBlog}
                           >
-                            Delete
+                            Remove
                           </button>
                         </td>
                       </tr>
                     ))}
                     {!topics.length && !loading && (
                       <tr>
-                        <td colSpan="6">
+                        <td colSpan="4">
                           <div className="aa-empty">
-                            No topics yet. Add a topic above, then enable
-                            automation and save.
+                            No topics yet. Add one above, then Save and turn automation on.
                           </div>
                         </td>
                       </tr>
