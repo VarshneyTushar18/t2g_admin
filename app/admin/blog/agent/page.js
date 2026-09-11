@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import ReadOnlyBanner from "../../components/ReadOnlyBanner";
 import BlogEditorShell from "../components/BlogEditorShell";
 import * as agentApi from "../services/blogAgentService";
+import { getBlogPost } from "../services/blogService";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -20,6 +21,31 @@ function formatTime(iso) {
     return "";
   }
 }
+
+function postsFromMessage(m) {
+  const fromTool = m?.tool_output?.posts;
+  if (Array.isArray(fromTool) && fromTool.length) return fromTool;
+
+  const content = String(m?.content || "");
+  const idMatch = content.match(/\bid[:\s#]*(\d{1,10})\b/i);
+  if (!idMatch) return [];
+  const slugMatch = content.match(/blogs\/([a-z0-9-]+)/i);
+  const statusMatch = content.match(/\b(draft|pending|publish|published)\b/i);
+  let status = statusMatch ? statusMatch[1].toLowerCase() : "draft";
+  if (status === "published") status = "publish";
+  return [
+    {
+      id: Number(idMatch[1]),
+      slug: slugMatch?.[1] || null,
+      status,
+      title: null,
+      url: slugMatch ? `https://www.tech2globe.com/blogs/${slugMatch[1]}` : null,
+    },
+  ];
+}
+
+const IMPROVE_PROMPT =
+  "Please improve the last blog post you created. Fix formatting so no raw ** or * asterisks show on the live page. Rewrite it in a top HubSpot/Medium-style pattern: clear H2 sections, short paragraphs, bullet lists, human expert tone. Use update_blog_post with the existing post id to replace the draft — do not create a duplicate.";
 
 export default function BlogAgentPage() {
   const router = useRouter();
@@ -41,6 +67,12 @@ export default function BlogAgentPage() {
   const [guidelines, setGuidelines] = useState("");
   const [guidelinesDraft, setGuidelinesDraft] = useState("");
   const [savingGuidelines, setSavingGuidelines] = useState(false);
+  const [feedbackByMsg, setFeedbackByMsg] = useState({});
+  const [feedbackBusy, setFeedbackBusy] = useState({});
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+  const [previewPost, setPreviewPost] = useState(null);
 
   const messagesEndRef = useRef(null);
   const startedFreshRef = useRef(false);
@@ -102,7 +134,6 @@ export default function BlogAgentPage() {
       setAgentModel(s.model || "");
     }).catch(() => setAgentReady(false));
     loadThreads();
-    // ChatGPT-style: always open a fresh blank chat on page visit
     if (!startedFreshRef.current) {
       startedFreshRef.current = true;
       setActiveThreadId(null);
@@ -136,19 +167,18 @@ export default function BlogAgentPage() {
     }
   };
 
-  const handleSend = async (e) => {
-    e?.preventDefault();
-    const text = input.trim();
-    if (!text || sending) return;
+  const sendText = async (text, { clearInput = false } = {}) => {
+    const trimmed = String(text || "").trim();
+    if (!trimmed || sending) return;
 
     setError("");
     setSending(true);
-    setInput("");
+    if (clearInput) setInput("");
 
     let threadId = activeThreadId;
     try {
       if (!threadId) {
-        const thread = await agentApi.createThread(text.slice(0, 60));
+        const thread = await agentApi.createThread(trimmed.slice(0, 60));
         threadId = thread.id;
         setThreads((prev) => [thread, ...prev]);
         openThreadTab(thread);
@@ -156,14 +186,24 @@ export default function BlogAgentPage() {
 
       setMessages((prev) => [
         ...prev,
-        { id: `tmp-u-${Date.now()}`, role: "user", content: text, created_at: new Date().toISOString() },
+        {
+          id: `tmp-u-${Date.now()}`,
+          role: "user",
+          content: trimmed,
+          created_at: new Date().toISOString(),
+        },
       ]);
       scrollToBottom();
 
-      const result = await agentApi.sendMessage(threadId, text);
+      const result = await agentApi.sendMessage(threadId, trimmed);
       setMessages((prev) => [
         ...prev.filter((m) => !String(m.id).startsWith("tmp-u-")),
-        { id: `u-${Date.now()}`, role: "user", content: text, created_at: new Date().toISOString() },
+        {
+          id: `u-${Date.now()}`,
+          role: "user",
+          content: trimmed,
+          created_at: new Date().toISOString(),
+        },
         result.assistant,
       ]);
       loadThreads();
@@ -176,13 +216,70 @@ export default function BlogAgentPage() {
     }
   };
 
+  const handleSend = async (e) => {
+    e?.preventDefault();
+    await sendText(input, { clearInput: true });
+  };
+
   const handleFeedback = async (messageId, rating) => {
-    if (!activeThreadId) return;
+    if (!activeThreadId || !messageId) {
+      setError("Open a saved chat message before giving feedback.");
+      return;
+    }
+    if (String(messageId).startsWith("tmp-") || String(messageId).startsWith("u-")) {
+      setError("Wait for the reply to finish saving, then try feedback again.");
+      return;
+    }
+    if (feedbackBusy[messageId] || feedbackByMsg[messageId]) return;
+
+    setFeedbackBusy((prev) => ({ ...prev, [messageId]: true }));
+    setError("");
     try {
-      await agentApi.sendFeedback(activeThreadId, { messageId, rating });
+      await agentApi.sendFeedback(activeThreadId, {
+        messageId,
+        rating: Number(rating),
+        comment:
+          rating === -1
+            ? "User marked Bad — rewrite with better blog formatting"
+            : "User marked Good",
+      });
+      setFeedbackByMsg((prev) => ({ ...prev, [messageId]: rating }));
+
+      if (rating === -1) {
+        await sendText(IMPROVE_PROMPT);
+      }
     } catch (err) {
       setError(err.message || "Feedback failed");
+    } finally {
+      setFeedbackBusy((prev) => {
+        const next = { ...prev };
+        delete next[messageId];
+        return next;
+      });
     }
+  };
+
+  const openPreview = async (postMeta) => {
+    if (!postMeta?.id) return;
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    setPreviewError("");
+    setPreviewPost(null);
+    try {
+      const post = await getBlogPost(postMeta.id);
+      if (!post) throw new Error("Post not found");
+      setPreviewPost(post);
+    } catch (err) {
+      setPreviewError(err.message || "Could not load preview");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewOpen(false);
+    setPreviewPost(null);
+    setPreviewError("");
   };
 
   const handleSaveGuidelines = async () => {
@@ -381,6 +478,7 @@ export default function BlogAgentPage() {
         .ba-msg-actions {
           margin-top: 8px;
           display: flex;
+          flex-wrap: wrap;
           gap: 6px;
         }
         .ba-fb-btn {
@@ -392,6 +490,23 @@ export default function BlogAgentPage() {
           cursor: pointer;
         }
         .ba-fb-btn:hover { background: #f8fafc; }
+        .ba-fb-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .ba-fb-btn.active-good {
+          background: #dcfce7;
+          border-color: #86efac;
+          color: #166534;
+        }
+        .ba-fb-btn.active-bad {
+          background: #fee2e2;
+          border-color: #fca5a5;
+          color: #991b1b;
+        }
+        .ba-fb-btn.preview {
+          background: #eff6ff;
+          border-color: #93c5fd;
+          color: #1d4ed8;
+          font-weight: 600;
+        }
         .ba-empty {
           flex: 1;
           display: flex;
@@ -470,6 +585,132 @@ export default function BlogAgentPage() {
           background: none;
           border: none;
           cursor: pointer;
+        }
+        .ba-preview-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 80;
+          background: rgba(15, 23, 42, 0.55);
+          display: flex;
+          align-items: stretch;
+          justify-content: center;
+          padding: 16px;
+        }
+        .ba-preview-shell {
+          width: min(920px, 100%);
+          background: #fff;
+          border-radius: 12px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+        }
+        .ba-preview-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 16px;
+          border-bottom: 1px solid #e2e8f0;
+          background: #f8fafc;
+        }
+        .ba-preview-bar h3 {
+          margin: 0;
+          font-size: 14px;
+          color: #0f172a;
+        }
+        .ba-preview-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .ba-preview-actions button, .ba-preview-actions a {
+          font-size: 12px;
+          padding: 6px 10px;
+          border-radius: 6px;
+          border: 1px solid #cbd5e1;
+          background: #fff;
+          color: #334155;
+          cursor: pointer;
+          text-decoration: none;
+          font-weight: 600;
+        }
+        .ba-preview-body {
+          flex: 1;
+          overflow-y: auto;
+          background: #f1f5f9;
+          padding: 24px 16px 40px;
+        }
+        .ba-article {
+          max-width: 720px;
+          margin: 0 auto;
+          background: #fff;
+          border-radius: 12px;
+          padding: 28px 28px 40px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .ba-article-cover {
+          width: 100%;
+          max-height: 360px;
+          object-fit: cover;
+          border-radius: 10px;
+          margin-bottom: 22px;
+        }
+        .ba-article-title {
+          margin: 0 0 10px;
+          font-size: 34px;
+          line-height: 1.2;
+          color: #0f172a;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+        }
+        .ba-article-meta {
+          font-size: 13px;
+          color: #64748b;
+          margin-bottom: 24px;
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+        .ba-article-content {
+          font-size: 17px;
+          line-height: 1.75;
+          color: #1e293b;
+        }
+        .ba-article-content h1,
+        .ba-article-content h2,
+        .ba-article-content h3,
+        .ba-article-content h4 {
+          color: #0f172a;
+          line-height: 1.3;
+          margin: 1.6em 0 0.55em;
+          font-weight: 700;
+        }
+        .ba-article-content h2 { font-size: 1.45em; }
+        .ba-article-content h3 { font-size: 1.2em; }
+        .ba-article-content p { margin: 0 0 1.05em; }
+        .ba-article-content ul, .ba-article-content ol {
+          margin: 0 0 1.1em;
+          padding-left: 1.35em;
+        }
+        .ba-article-content li { margin-bottom: 0.4em; }
+        .ba-article-content strong { font-weight: 700; color: #0f172a; }
+        .ba-article-content a { color: #2563eb; }
+        .ba-article-content img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 8px;
+          margin: 12px 0;
+        }
+        .ba-article-content blockquote {
+          margin: 1.2em 0;
+          padding: 10px 16px;
+          border-left: 3px solid #cbd5e1;
+          color: #475569;
+          background: #f8fafc;
+        }
+        .ba-article-content code {
+          background: #f1f5f9;
+          padding: 1px 5px;
+          border-radius: 4px;
+          font-size: 0.9em;
         }
       `}</style>
 
@@ -619,29 +860,65 @@ export default function BlogAgentPage() {
                     &quot;Write a blog about Amazon PPC best practices, author Tarun, with images&quot;
                   </p>
                   <p style={{ marginTop: 8, fontSize: 13 }}>
-                    Cover + in-article images are added automatically. You can also paste an image URL.
+                    Cover + in-article images are added automatically. Drafts include a full-page Preview button.
                   </p>
                   <p style={{ marginTop: 8, fontSize: 13 }}>
-                    The agent remembers this conversation and learns from your 👍/👎 feedback.
+                    👍 Good saves feedback. 👎 Bad asks the agent to rewrite and improve the post.
                   </p>
                 </div>
               </div>
             )}
-            {messages.map((m) => (
-              <div key={m.id} className={`ba-msg ${m.role}`}>
-                {m.content}
-                {m.role === "assistant" && (
-                  <div className="ba-msg-actions">
-                    <button type="button" className="ba-fb-btn" onClick={() => handleFeedback(m.id, 1)}>
-                      👍 Good
-                    </button>
-                    <button type="button" className="ba-fb-btn" onClick={() => handleFeedback(m.id, -1)}>
-                      👎 Improve
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+            {messages.map((m) => {
+              const posts = m.role === "assistant" ? postsFromMessage(m) : [];
+              const rated = feedbackByMsg[m.id];
+              const busy = Boolean(feedbackBusy[m.id]);
+              return (
+                <div key={m.id} className={`ba-msg ${m.role}`}>
+                  {m.content}
+                  {m.role === "assistant" && (
+                    <div className="ba-msg-actions">
+                      {posts.map((p) => (
+                        <button
+                          key={`preview-${p.id}`}
+                          type="button"
+                          className="ba-fb-btn preview"
+                          onClick={() => openPreview(p)}
+                        >
+                          Preview page
+                        </button>
+                      ))}
+                      {posts[0]?.id && (
+                        <a
+                          className="ba-fb-btn"
+                          href={`/admin/blog/edit/${posts[0].id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+                        >
+                          Open editor
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        className={`ba-fb-btn ${rated === 1 ? "active-good" : ""}`}
+                        disabled={busy || Boolean(rated) || sending}
+                        onClick={() => handleFeedback(m.id, 1)}
+                      >
+                        {rated === 1 ? "✓ Good" : "👍 Good"}
+                      </button>
+                      <button
+                        type="button"
+                        className={`ba-fb-btn ${rated === -1 ? "active-bad" : ""}`}
+                        disabled={busy || Boolean(rated) || sending}
+                        onClick={() => handleFeedback(m.id, -1)}
+                      >
+                        {busy && rated !== 1 ? "Improving…" : rated === -1 ? "✓ Bad · rewriting" : "👎 Bad"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {sending && (
               <div className="ba-msg assistant">Thinking…</div>
             )}
@@ -677,6 +954,69 @@ export default function BlogAgentPage() {
           </form>
         </div>
       </div>
+
+      {previewOpen && (
+        <div className="ba-preview-overlay" role="dialog" aria-modal="true">
+          <div className="ba-preview-shell">
+            <div className="ba-preview-bar">
+              <h3>
+                Full page preview
+                {previewPost?.status ? (
+                  <span className="ba-badge draft" style={{ marginLeft: 8 }}>
+                    {previewPost.status}
+                  </span>
+                ) : null}
+              </h3>
+              <div className="ba-preview-actions">
+                {previewPost?.id && (
+                  <a href={`/admin/blog/edit/${previewPost.id}`} target="_blank" rel="noreferrer">
+                    Edit draft
+                  </a>
+                )}
+                {previewPost?.slug && previewPost?.status === "publish" && (
+                  <a
+                    href={`https://www.tech2globe.com/blogs/${previewPost.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Live URL
+                  </a>
+                )}
+                <button type="button" onClick={closePreview}>
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="ba-preview-body">
+              {previewLoading && <p style={{ textAlign: "center", color: "#64748b" }}>Loading preview…</p>}
+              {previewError && (
+                <p style={{ textAlign: "center", color: "#b91c1c" }}>{previewError}</p>
+              )}
+              {!previewLoading && !previewError && previewPost && (
+                <article className="ba-article">
+                  {previewPost.featured_image ? (
+                    <img
+                      className="ba-article-cover"
+                      src={previewPost.featured_image}
+                      alt={previewPost.title || "Cover"}
+                    />
+                  ) : null}
+                  <h1 className="ba-article-title">{previewPost.title}</h1>
+                  <div className="ba-article-meta">
+                    <span>{previewPost.author || "Tech2Globe"}</span>
+                    {previewPost.date && <span>· {formatTime(previewPost.date)}</span>}
+                    {previewPost.slug && <span>· /blogs/{previewPost.slug}</span>}
+                  </div>
+                  <div
+                    className="ba-article-content"
+                    dangerouslySetInnerHTML={{ __html: previewPost.content || "" }}
+                  />
+                </article>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </BlogEditorShell>
   );
 }

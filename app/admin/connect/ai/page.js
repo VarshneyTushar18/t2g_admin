@@ -94,8 +94,26 @@ export default function AiIntegrationsPage() {
       if (form.api_key.trim()) payload.api_key = form.api_key.trim();
       const next = await saveAiSettings(payload);
       setMeta(next);
-      setForm((prev) => ({ ...prev, api_key: "" }));
-      setSuccess("Saved. Blog, Career, Image, and Automations agents will use this config.");
+      setForm((prev) => ({
+        ...prev,
+        api_key: "",
+        enabled: next.enabled !== false,
+      }));
+      if (!payload.enabled) {
+        setSuccess(
+          "Saved, but DB settings are OFF — agents still use .env. Enable DB settings and Save again.",
+        );
+      } else if (next.runtime_source === "database" && next.runtime_configured) {
+        setSuccess("Saved. Blog, Career, Image, and Automations agents will use this config.");
+      } else if (next.runtime_source === "decrypt_error") {
+        setError(
+          "Saved, but the key could not be decrypted. Paste the API key again and Save.",
+        );
+      } else {
+        setSuccess(
+          `Saved. Runtime: ${next.runtime_configured ? "configured" : "not configured"} via ${next.runtime_source || "—"}.`,
+        );
+      }
     } catch (err) {
       setError(err.message || "Save failed");
     } finally {
@@ -179,6 +197,19 @@ export default function AiIntegrationsPage() {
               <> · saved key <code>{meta.api_key_hint}</code></>
             ) : null}
           </p>
+          {!form.enabled && (
+            <p className="connect-alert connect-alert-error" style={{ marginTop: 8 }}>
+              DB settings are off — agents are ignoring the key above and using
+              server <code>.env</code> (often an old OpenRouter <code>sk-or-v1…</code> key).
+              Check <strong>Enable DB settings</strong> and Save.
+            </p>
+          )}
+          {meta?.runtime_source === "decrypt_error" && (
+            <p className="connect-alert connect-alert-error" style={{ marginTop: 8 }}>
+              Saved key could not be decrypted (server secret mismatch). Paste the
+              API key again, Save, then click Test config.
+            </p>
+          )}
 
           <form onSubmit={handleSave}>
             <div className="connect-field">
