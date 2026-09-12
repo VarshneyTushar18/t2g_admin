@@ -2,10 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export default function CustomEditor({ value, onChange, editorApiRef }) {
+/**
+ * CKEditor Classic with link + formatting toolbar.
+ * Optional uploadUrl enables imageUpload in the content body.
+ */
+export default function CustomEditor({ value, onChange, editorApiRef, uploadUrl }) {
   const editorRef = useRef(null);
   const instanceRef = useRef(null);
   const [ready, setReady] = useState(false);
+  const uploadUrlRef = useRef(uploadUrl);
+  uploadUrlRef.current = uploadUrl;
 
   useEffect(() => {
     setReady(true);
@@ -20,30 +26,109 @@ export default function CustomEditor({ value, onChange, editorApiRef }) {
           await import("@ckeditor/ckeditor5-build-classic")
         ).default;
 
-        // Destroy previous instance if exists
         if (instanceRef.current) {
           await instanceRef.current.destroy().catch(() => {});
           instanceRef.current = null;
         }
 
         const editor = await ClassicEditor.create(editorRef.current, {
-          toolbar: [
-            "heading", "|",
-            "bold", "italic", "underline", "|",
-            "bulletedList", "numberedList", "|",
-            "blockQuote", "|",
-            "insertTable", "tableColumn", "tableRow", "|",
-            "undo", "redo",
-          ],
+          toolbar: {
+            items: [
+              "heading",
+              "|",
+              "bold",
+              "italic",
+              "|",
+              "link",
+              "|",
+              "bulletedList",
+              "numberedList",
+              "outdent",
+              "indent",
+              "|",
+              "blockQuote",
+              "insertTable",
+              "imageUpload",
+              "mediaEmbed",
+              "|",
+              "undo",
+              "redo",
+            ],
+            shouldNotGroupWhenFull: true,
+          },
+          heading: {
+            options: [
+              { model: "paragraph", title: "Paragraph", class: "ck-heading_paragraph" },
+              { model: "heading2", view: "h2", title: "Heading 2", class: "ck-heading_heading2" },
+              { model: "heading3", view: "h3", title: "Heading 3", class: "ck-heading_heading3" },
+              { model: "heading4", view: "h4", title: "Heading 4", class: "ck-heading_heading4" },
+            ],
+          },
+          link: {
+            addTargetToExternalLinks: true,
+            defaultProtocol: "https://",
+            decorators: {
+              openInNewTab: {
+                mode: "manual",
+                label: "Open in a new tab",
+                attributes: {
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                },
+              },
+            },
+          },
           table: {
-            contentToolbar: ["tableColumn", "tableRow", "mergeTableCells"],
+            contentToolbar: [
+              "tableColumn",
+              "tableRow",
+              "mergeTableCells",
+            ],
+          },
+          image: {
+            toolbar: [
+              "imageTextAlternative",
+              "imageStyle:inline",
+              "imageStyle:block",
+              "imageStyle:side",
+              "linkImage",
+            ],
           },
         });
 
-        
+        // Upload adapter for inline images (reuses featured upload endpoint when provided)
+        if (uploadUrlRef.current) {
+          const endpoint = uploadUrlRef.current;
+          editor.plugins.get("FileRepository").createUploadAdapter = (loader) => ({
+            upload: () =>
+              loader.file.then(
+                (file) =>
+                  new Promise(async (resolve, reject) => {
+                    try {
+                      const data = new FormData();
+                      data.append("featured_image", file);
+                      const res = await fetch(endpoint, {
+                        method: "POST",
+                        body: data,
+                        credentials: "include",
+                      });
+                      const json = await res.json().catch(() => ({}));
+                      if (!res.ok || !json?.url) {
+                        reject(json?.error || "Image upload failed");
+                        return;
+                      }
+                      resolve({ default: json.url });
+                    } catch (err) {
+                      reject(err?.message || "Image upload failed");
+                    }
+                  }),
+              ),
+            abort: () => {},
+          });
+        }
+
         editor.setData(value || "");
 
-   
         editor.model.document.on("change:data", () => {
           onChange(editor.getData());
         });
@@ -73,9 +158,8 @@ export default function CustomEditor({ value, onChange, editorApiRef }) {
         instanceRef.current = null;
       }
     };
-  }, [ready, editorApiRef]); // ← only runs once when ready
+  }, [ready, editorApiRef]);
 
-  // ✅ Sync value when editing existing item
   useEffect(() => {
     if (!instanceRef.current) return;
     const current = instanceRef.current.getData();
@@ -94,6 +178,8 @@ export default function CustomEditor({ value, onChange, editorApiRef }) {
         .ck-editor__editable table { border-collapse: collapse; width: 100%; margin: 12px 0; }
         .ck-editor__editable table td, .ck-editor__editable table th { border: 1px solid #ccc; padding: 8px 12px; min-width: 80px; }
         .ck-editor__editable table th { background: #f0f2f5; font-weight: 700; }
+        .ck-editor__editable a { color: #1a56db; text-decoration: underline; }
+        .ck-editor__editable img { max-width: 100%; height: auto; }
         .ck.ck-balloon-panel { z-index: 9999 !important; }
       `}</style>
       <div ref={editorRef} />

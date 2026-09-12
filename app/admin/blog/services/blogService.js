@@ -30,6 +30,8 @@ const buildJsonPayload = async (form, featured_image) => {
     status: form.status || "publish",
     author_name: form.author_name || "",
     featured_image: featured_image || "",
+    featured_image_title: form.featured_image_title || "",
+    featured_image_alt: form.featured_image_alt || "",
     categories: form.categories || [],
     tags: form.tags || [],
     seo: form.seo || emptyBlogSeo,

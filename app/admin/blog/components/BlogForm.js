@@ -6,6 +6,7 @@ import { emptyBlogSeo } from "../services/blogService";
 import CategoryMultiSelect from "./CategoryMultiSelect";
 
 const SITE_HOST = "www.tech2globe.com";
+const INLINE_IMAGE_UPLOAD_URL = "/api/blog/admin/upload-featured";
 
 const stripHtml = (html = "") =>
   String(html)
@@ -62,6 +63,8 @@ export default function BlogForm({
   const editorApiRef = useRef(null);
   const imageRef = useRef(null);
   const [tab, setTab] = useState("content");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState("");
 
   const seo = form.seo || emptyBlogSeo;
 
@@ -99,6 +102,12 @@ export default function BlogForm({
     if (imageRef.current) imageRef.current.value = "";
   };
 
+  const openPreview = () => {
+    const content = editorApiRef.current?.getData() || form.content || "";
+    setPreviewHtml(content);
+    setPreviewOpen(true);
+  };
+
   const previewTitle = seo.meta_title || form.title || "Blog post title";
   const previewDesc =
     seo.meta_description ||
@@ -108,6 +117,8 @@ export default function BlogForm({
     seo.canonical_url ||
     (form.slug ? `https://${SITE_HOST}/blogs/${form.slug}` : `https://${SITE_HOST}/blogs/...`);
   const previewImage = seo.og_image || imagePreview || "";
+  const coverAlt = form.featured_image_alt || form.title || "Featured image";
+  const coverTitle = form.featured_image_title || form.title || "";
 
   const seoScore = scoreSeo(form);
   const readabilityScore = scoreReadability(form);
@@ -140,6 +151,8 @@ export default function BlogForm({
       content,
       author_name,
       tags,
+      featured_image_title: (form.featured_image_title || "").trim(),
+      featured_image_alt: (form.featured_image_alt || "").trim(),
     });
   };
 
@@ -344,7 +357,45 @@ export default function BlogForm({
         }
         .bf-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .bf-btn-primary { background: #16a37f; color: #fff; }
+        .bf-btn-secondary { background: #fff; color: #334155; border: 1.5px solid #cbd5e1; }
+        .bf-btn-secondary:hover { background: #f1f5f9; }
         .bf-btn-cancel { background: #e8ecf1; color: #475569; }
+        .bf-upload-fields { margin-top: 10px; display: grid; gap: 8px; }
+        .bf-preview-backdrop {
+          position: fixed; inset: 0; z-index: 80;
+          background: rgba(15, 23, 42, 0.55);
+          display: flex; align-items: stretch; justify-content: center;
+          padding: 24px 16px;
+        }
+        .bf-preview-modal {
+          background: #fff; width: min(900px, 100%);
+          max-height: 100%; overflow: auto;
+          border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,.25);
+          display: flex; flex-direction: column;
+        }
+        .bf-preview-bar {
+          display: flex; align-items: center; justify-content: space-between;
+          gap: 12px; padding: 12px 16px;
+          border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+          position: sticky; top: 0; z-index: 1;
+        }
+        .bf-preview-bar h3 { margin: 0; font-size: 15px; color: #0f172a; }
+        .bf-preview-article { padding: 28px 32px 48px; }
+        .bf-preview-cover {
+          width: 100%; max-height: 360px; object-fit: cover;
+          border-radius: 8px; margin-bottom: 20px;
+        }
+        .bf-preview-article h1 {
+          font-size: 1.75rem; line-height: 1.25; margin: 0 0 12px; color: #0f172a;
+        }
+        .bf-preview-meta { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+        .bf-preview-body { font-size: 16px; line-height: 1.7; color: #1e293b; }
+        .bf-preview-body h2 { font-size: 1.35rem; margin: 1.4em 0 0.5em; }
+        .bf-preview-body h3 { font-size: 1.15rem; margin: 1.2em 0 0.4em; }
+        .bf-preview-body p { margin: 0 0 1em; }
+        .bf-preview-body ul, .bf-preview-body ol { margin: 0 0 1em; padding-left: 1.4em; }
+        .bf-preview-body a { color: #1a56db; }
+        .bf-preview-body img { max-width: 100%; height: auto; border-radius: 6px; }
         @media (max-width: 960px) {
           .bf-layout { grid-template-columns: 1fr; }
           .bf-sidebar-sticky { position: static; }
@@ -407,8 +458,13 @@ export default function BlogForm({
                     value={form.content || ""}
                     onChange={(val) => handleChange("content", val)}
                     editorApiRef={editorApiRef}
+                    uploadUrl={INLINE_IMAGE_UPLOAD_URL}
                   />
                 </div>
+                <p className="bf-hint" style={{ marginTop: 8 }}>
+                  Use the Link button to insert URLs. Toolbar also supports lists, quotes, tables,
+                  image upload, and media embeds.
+                </p>
               </>
             )}
 
@@ -582,6 +638,14 @@ export default function BlogForm({
                         ? "Update post"
                         : "Publish post"}
                   </button>
+                  <button
+                    type="button"
+                    className="bf-btn bf-btn-secondary"
+                    onClick={openPreview}
+                    disabled={submitting}
+                  >
+                    Preview
+                  </button>
                   <button type="button" className="bf-btn bf-btn-cancel" onClick={onCancel}>
                     Cancel
                   </button>
@@ -602,7 +666,12 @@ export default function BlogForm({
                 <h3 className="bf-panel-title">Featured image</h3>
                 <div className="bf-upload" onClick={() => imageRef.current?.click()}>
                   {imagePreview ? (
-                    <img src={imagePreview} alt="Featured preview" className="bf-preview" />
+                    <img
+                      src={imagePreview}
+                      alt={coverAlt}
+                      title={coverTitle || undefined}
+                      className="bf-preview"
+                    />
                   ) : (
                     <>
                       <span style={{ fontSize: 24 }}>🖼️</span>
@@ -622,6 +691,30 @@ export default function BlogForm({
                     ✕ Remove image
                   </button>
                 )}
+                <div className="bf-upload-fields">
+                  <div className="bf-group" style={{ margin: 0 }}>
+                    <label className="bf-label">Meta title</label>
+                    <input
+                      className="bf-input"
+                      placeholder="Image title attribute"
+                      value={form.featured_image_title || ""}
+                      onChange={(e) =>
+                        handleChange("featured_image_title", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="bf-group" style={{ margin: 0 }}>
+                    <label className="bf-label">Alt tag</label>
+                    <input
+                      className="bf-input"
+                      placeholder="Describe the image for SEO / accessibility"
+                      value={form.featured_image_alt || ""}
+                      onChange={(e) =>
+                        handleChange("featured_image_alt", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="bf-panel">
@@ -668,6 +761,53 @@ export default function BlogForm({
           </aside>
         </div>
       </form>
+
+      {previewOpen && (
+        <div
+          className="bf-preview-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPreviewOpen(false);
+          }}
+        >
+          <div className="bf-preview-modal">
+            <div className="bf-preview-bar">
+              <h3>Blog preview (before publish)</h3>
+              <button
+                type="button"
+                className="bf-btn bf-btn-secondary"
+                style={{ width: "auto" }}
+                onClick={() => setPreviewOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <article className="bf-preview-article">
+              {imagePreview ? (
+                <img
+                  className="bf-preview-cover"
+                  src={imagePreview}
+                  alt={coverAlt}
+                  title={coverTitle || undefined}
+                />
+              ) : null}
+              <h1>{form.title || "Untitled post"}</h1>
+              <div className="bf-preview-meta">
+                {[form.author_name, form.status, form.slug && `/${form.slug}`]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+              <div
+                className="bf-preview-body"
+                dangerouslySetInnerHTML={{
+                  __html: previewHtml || "<p><em>No content yet.</em></p>",
+                }}
+              />
+            </article>
+          </div>
+        </div>
+      )}
     </>
   );
 }
