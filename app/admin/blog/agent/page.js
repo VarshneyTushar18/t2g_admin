@@ -1052,10 +1052,13 @@ export default function BlogAgentPage() {
                 <div>
                   <p><strong>Try asking:</strong></p>
                   <p style={{ marginTop: 8 }}>
-                    &quot;Write a blog about Amazon PPC best practices, author Tarun, with images&quot;
+                    &quot;I want a blog about Amazon PPC&quot;
                   </p>
                   <p style={{ marginTop: 8, fontSize: 13 }}>
-                    After a draft is created, Preview opens automatically. You can also use the Preview page button.
+                    The agent asks a few simple questions first, shows a short plan, then writes after you say <strong>yes</strong> or <strong>write it</strong>.
+                  </p>
+                  <p style={{ marginTop: 8, fontSize: 13 }}>
+                    Say <strong>just write it</strong> to skip questions. After create, Preview opens automatically.
                   </p>
                   <p style={{ marginTop: 8, fontSize: 13 }}>
                     👍 Good saves feedback. 👎 Bad asks the agent to rewrite and improve the post.
