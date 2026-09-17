@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import ReadOnlyBanner from "../../components/ReadOnlyBanner";
 import BlogEditorShell from "../components/BlogEditorShell";
-import * as agentApi from "../services/blogAgentService";
+import * as agentApi from "../services/blogImageAgentService";
+import Link from "next/link";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -35,6 +36,8 @@ export default function BlogAgentPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState("");
   const [agentReady, setAgentReady] = useState(null);
+  const [agentStatus, setAgentStatus] = useState(null);
+  const [gallery, setGallery] = useState([]);
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [guidelines, setGuidelines] = useState("");
   const [guidelinesDraft, setGuidelinesDraft] = useState("");
@@ -88,7 +91,22 @@ export default function BlogAgentPage() {
 
   useEffect(() => {
     if (authLoading || !canView("blog")) return;
-    agentApi.getAgentStatus().then((s) => setAgentReady(s.configured)).catch(() => setAgentReady(false));
+    agentApi
+      .getAgentStatus()
+      .then((s) => {
+        setAgentStatus(s);
+        setAgentReady(Boolean(s.configured));
+      })
+      .catch(() => {
+        setAgentReady(false);
+        setAgentStatus({
+          configured: false,
+          alerts: [
+            "Could not reach Image Agent status. Check backend and Connect → AI Integrations.",
+          ],
+        });
+      });
+    agentApi.listGallery().then(setGallery).catch(() => setGallery([]));
     loadThreads();
     agentApi.getGuidelines().then((g) => {
       setGuidelines(g?.content || "");
@@ -143,6 +161,7 @@ export default function BlogAgentPage() {
         result.assistant,
       ]);
       loadThreads();
+      agentApi.listGallery().then(setGallery).catch(() => {});
       scrollToBottom();
     } catch (err) {
       setError(err.message || "Agent failed");
@@ -190,7 +209,7 @@ export default function BlogAgentPage() {
 
   if (authLoading || !canView("blog")) {
     return (
-      <BlogEditorShell title="Blog Agent">
+      <BlogEditorShell title="Image Agent">
         <p>Loading…</p>
       </BlogEditorShell>
     );
@@ -198,8 +217,8 @@ export default function BlogAgentPage() {
 
   return (
     <BlogEditorShell
-      title="Blog Agent"
-      subtitle="Chat with AI to draft and publish blog posts. Conversations are saved so the agent learns from your feedback over time."
+      title="Image Agent"
+      subtitle="Generate blog images only. Images are not auto-attached to blogs — copy the URL or attach manually when you ask."
     >
       <style>{`
         .ba-layout {
@@ -408,21 +427,50 @@ export default function BlogAgentPage() {
 
       {error && <div className="ba-error">{error}</div>}
 
+      {agentReady === false && (
+        <div
+          className="ba-error"
+          style={{
+            background: "#fff7ed",
+            color: "#9a3412",
+            border: "1px solid #fdba74",
+          }}
+          role="alert"
+        >
+          <strong>Image generation is not ready.</strong>
+          <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+            {(agentStatus?.alerts?.length
+              ? agentStatus.alerts
+              : [
+                  "Set an Image model + API key in Connect → AI Integrations. Text ChatGPT models cannot generate images.",
+                ]
+            ).map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
+          <p style={{ margin: "10px 0 0" }}>
+            <Link href="/admin/connect/ai" style={{ color: "#9a3412", fontWeight: 700 }}>
+              Open Connect → AI Integrations → Image generation
+            </Link>
+          </p>
+        </div>
+      )}
+
       <div style={{ marginBottom: 12 }}>
         <button
           type="button"
           className="ba-guidelines-toggle"
           onClick={() => setShowGuidelines((v) => !v)}
         >
-          {showGuidelines ? "Hide" : "Show"} brand guidelines
+          {showGuidelines ? "Hide" : "Show"} image guidelines
         </button>
       </div>
 
       {showGuidelines && (
         <div className="ba-guidelines-panel">
-          <strong>Brand brain</strong>
+          <strong>Image guidelines</strong>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
-            The agent reads this on every run. Update when you want it to remember new rules.
+            Style rules for generated images only (not blog writing).
           </p>
           <textarea
             value={guidelinesDraft}
@@ -484,18 +532,16 @@ export default function BlogAgentPage() {
           <div className="ba-status">
             <span>
               {user?.email && <>Signed in as {user.email} · </>}
-              {canPublish ? (
-                <span className="ba-badge ok">Can publish</span>
-              ) : (
-                <span className="ba-badge draft">Draft only</span>
-              )}
+              <span className="ba-badge ok">Images only — no auto blog sync</span>
             </span>
             <span>
               {agentReady === false && (
-                <span className="ba-badge warn">Agent offline — set OPENROUTER_API_KEY on server</span>
+                <span className="ba-badge warn">Image API / model missing</span>
               )}
               {agentReady === true && (
-                <span className="ba-badge ok">Agent ready</span>
+                <span className="ba-badge ok">
+                  Ready{agentStatus?.model ? ` · ${agentStatus.model}` : ""}
+                </span>
               )}
             </span>
           </div>
@@ -507,46 +553,115 @@ export default function BlogAgentPage() {
                 <div>
                   <p><strong>Try asking:</strong></p>
                   <p style={{ marginTop: 8 }}>
-                    &quot;Write a blog about Amazon PPC best practices, author Tarun, with images&quot;
+                    &quot;Generate a 16:9 cover image of a Shopify store owner reviewing analytics&quot;
                   </p>
                   <p style={{ marginTop: 8, fontSize: 13 }}>
-                    Cover + in-article images are added automatically. You can also paste an image URL.
+                    This page only generates images. It will <strong>not</strong> write a blog or auto-sync to a post.
                   </p>
                   <p style={{ marginTop: 8, fontSize: 13 }}>
-                    The agent remembers this conversation and learns from your 👍/👎 feedback.
+                    Copy the Cloudinary URL into Blog Agent / Blog Editor featured image when you need it.
                   </p>
                 </div>
               </div>
             )}
-            {messages.map((m) => (
-              <div key={m.id} className={`ba-msg ${m.role}`}>
-                {m.content}
-                {m.role === "assistant" && (
-                  <div className="ba-msg-actions">
-                    <button type="button" className="ba-fb-btn" onClick={() => handleFeedback(m.id, 1)}>
-                      👍 Good
-                    </button>
-                    <button type="button" className="ba-fb-btn" onClick={() => handleFeedback(m.id, -1)}>
-                      👎 Improve
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+            {messages.map((m) => {
+              const urls = [
+                ...((m.tool_output?.images || [])
+                  .map((img) => img.url)
+                  .filter(Boolean)),
+                ...String(m.content || "").match(
+                  /https?:\/\/res\.cloudinary\.com\/[^\s)]+/g,
+                ) || [],
+              ];
+              const uniqueUrls = [...new Set(urls)];
+              return (
+                <div key={m.id} className={`ba-msg ${m.role}`}>
+                  <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
+                  {uniqueUrls.length > 0 && (
+                    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                      {uniqueUrls.map((url) => (
+                        <div key={url}>
+                          <img
+                            src={url}
+                            alt="Generated"
+                            style={{
+                              maxWidth: "100%",
+                              borderRadius: 8,
+                              border: "1px solid #e2e8f0",
+                            }}
+                          />
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ fontSize: 12, wordBreak: "break-all" }}
+                          >
+                            {url}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {m.role === "assistant" && (
+                    <div className="ba-msg-actions">
+                      <button type="button" className="ba-fb-btn" onClick={() => handleFeedback(m.id, 1)}>
+                        👍 Good
+                      </button>
+                      <button type="button" className="ba-fb-btn" onClick={() => handleFeedback(m.id, -1)}>
+                        👎 Improve
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {sending && (
-              <div className="ba-msg assistant">Thinking…</div>
+              <div className="ba-msg assistant">Generating…</div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
+          {gallery.length > 0 && (
+            <div style={{ padding: "12px 16px", borderTop: "1px solid #e2e8f0" }}>
+              <strong style={{ fontSize: 13 }}>Recent gallery</strong>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  overflowX: "auto",
+                  marginTop: 8,
+                  paddingBottom: 4,
+                }}
+              >
+                {gallery.slice(0, 12).map((img) => (
+                  <a
+                    key={img.id || img.url}
+                    href={img.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={img.prompt || img.url}
+                  >
+                    <img
+                      src={img.url}
+                      alt=""
+                      style={{
+                        width: 96,
+                        height: 54,
+                        objectFit: "cover",
+                        borderRadius: 6,
+                        border: "1px solid #e2e8f0",
+                      }}
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           <form className="ba-input-row" onSubmit={handleSend}>
             <textarea
               className="ba-input"
-              placeholder={
-                canPublish
-                  ? 'e.g. "Publish a blog about Shopify SEO tips, author Tarun"'
-                  : 'e.g. "Draft a blog about Shopify SEO tips"'
-              }
+              placeholder='e.g. "Generate a cover image for Amazon PPC blog, modern office, 16:9"'
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
