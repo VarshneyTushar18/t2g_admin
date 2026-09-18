@@ -43,6 +43,12 @@ const icons = {
       <path d="M8 8h8M8 12h8" strokeLinecap="round" />
     </svg>
   ),
+  blog_2_0: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" strokeLinejoin="round" />
+      <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
   connect: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
       <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" strokeLinecap="round" strokeLinejoin="round" />
@@ -94,6 +100,11 @@ export const MODULE_THEMES = {
     accent: "#0d9488",
     glow: "rgba(13, 148, 136, 0.35)",
     bg: "linear-gradient(135deg, #ccfbf1 0%, #f0fdfa 100%)",
+  },
+  blog_2_0: {
+    accent: "#7c3aed",
+    glow: "rgba(124, 58, 237, 0.35)",
+    bg: "linear-gradient(135deg, #ede9fe 0%, #f5f3ff 100%)",
   },
   connect: {
     accent: "#0891b2",

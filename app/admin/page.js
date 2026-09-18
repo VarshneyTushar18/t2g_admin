@@ -17,6 +17,7 @@ function roleLabel(role) {
   if (role === "super_admin") return "Super Admin";
   if (role === "hr") return "HR";
   if (role === "digital_marketing") return "Digital Marketing";
+  if (role === "blog_2_0_project") return "Blog-2.0";
   return role || "Staff";
 }
 

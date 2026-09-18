@@ -1,0 +1,258 @@
+.b20-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.b20-hero {
+  background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 50%, #a78bfa 100%);
+  color: #fff;
+  border-radius: 16px;
+  padding: 1.75rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.b20-hero h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.65rem;
+  font-weight: 700;
+}
+
+.b20-hero p {
+  margin: 0;
+  opacity: 0.92;
+  line-height: 1.5;
+}
+
+.b20-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.b20-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.b20-card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.b20-progress {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 0.5rem 0 1rem;
+}
+
+.b20-progress > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #7c3aed, #a78bfa);
+  border-radius: 999px;
+}
+
+.b20-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.b20-checklist li {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.92rem;
+}
+
+.b20-checklist li:last-child {
+  border-bottom: none;
+}
+
+.b20-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+}
+
+.b20-dot.done {
+  background: #16a34a;
+}
+
+.b20-dot.pending {
+  background: #f59e0b;
+}
+
+.b20-dot.optional {
+  background: #94a3b8;
+}
+
+.b20-form label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.35rem;
+}
+
+.b20-form input,
+.b20-form select,
+.b20-form textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.b20-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.b20-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.b20-btn-primary {
+  background: #7c3aed;
+  color: #fff;
+}
+
+.b20-btn-secondary {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.b20-alert {
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.b20-alert.ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.b20-alert.err {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.b20-phase {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.b20-phase:last-child {
+  border-bottom: none;
+}
+
+.b20-badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.b20-badge.active {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.b20-badge.pending {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.b20-agent-wrap {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1rem;
+  min-height: 480px;
+}
+
+@media (max-width: 768px) {
+  .b20-agent-wrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+.b20-thread-list {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.b20-chat {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 480px;
+}
+
+.b20-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.b20-msg {
+  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.b20-msg.user {
+  background: #ede9fe;
+  margin-left: 2rem;
+}
+
+.b20-msg.assistant {
+  background: #f8fafc;
+  margin-right: 2rem;
+}
+
+.b20-chat-input {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.b20-chat-input textarea {
+  flex: 1;
+  margin: 0;
+  min-height: 44px;
+  resize: vertical;
+}
