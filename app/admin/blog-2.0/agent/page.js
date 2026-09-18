@@ -36,6 +36,7 @@ export default function Blog20AgentPage() {
       setAgentReady(status?.configured);
       const list = await agentApi.listThreads();
       setThreads(list);
+      // Only Blog-2.0 threads (agent_type blog_2_0) — never Tech2Globe Blog chats
       if (list[0]?.id) {
         await selectThread(list[0].id);
       }
@@ -113,8 +114,8 @@ export default function Blog20AgentPage() {
       <div className="b20-hero">
         <h1>Blog Agent</h1>
         <p>
-          Bright CRM writing assistant. AI keys are set by super admin in Connect → AI
-          Integrations.
+          Bright CRM only — separate from Tech2Globe Blog. Drafts save for MailerLite
+          website (not tech2globe.com). Chats here are isolated from the main Blog Agent.
         </p>
       </div>
 
