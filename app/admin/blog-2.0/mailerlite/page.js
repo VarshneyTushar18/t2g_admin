@@ -167,7 +167,10 @@ export default function Blog20MailerLitePage() {
     try {
       await handleSave({ preventDefault: () => {} });
       const res = await api.testMailerLiteBot();
-      setSuccess(res.message || "Bot login test OK");
+      if (!res?.ok) {
+        throw new Error(res?.message || "Bot login test did not return ok:true");
+      }
+      setSuccess(res.message || "Bot logged in and opened MailerLite blog list.");
     } catch (err) {
       setError(err.message || "Bot test failed");
     } finally {
