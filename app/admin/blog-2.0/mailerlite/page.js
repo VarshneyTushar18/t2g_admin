@@ -127,8 +127,14 @@ export default function Blog20MailerLitePage() {
       if (form.mailerlite_api_key.trim()) {
         payload.mailerlite_api_key = form.mailerlite_api_key.trim();
       }
-      if (form.mailerlite_login_email.trim()) {
-        payload.mailerlite_login_email = form.mailerlite_login_email.trim();
+      const loginEmail = form.mailerlite_login_email.trim();
+      if (loginEmail) {
+        if (loginEmail.includes("://") || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail)) {
+          throw new Error(
+            "Bot login email must be a MailerLite account email (e.g. user@company.com), not a website URL.",
+          );
+        }
+        payload.mailerlite_login_email = loginEmail;
       }
       if (form.mailerlite_login_password.trim()) {
         payload.mailerlite_login_password = form.mailerlite_login_password.trim();
@@ -138,9 +144,14 @@ export default function Blog20MailerLitePage() {
       setForm((prev) => ({
         ...prev,
         mailerlite_api_key: "",
+        mailerlite_login_email: "",
         mailerlite_login_password: "",
       }));
-      setSuccess("Saved Blog-2.0 MailerLite settings.");
+      setSuccess(
+        next?.has_mailerlite_login
+          ? `Saved. Bot login: ${next.mailerlite_login_email_hint || "configured"}.`
+          : "Saved Blog-2.0 MailerLite settings.",
+      );
     } catch (err) {
       setError(err.message || "Save failed");
     } finally {
@@ -274,11 +285,23 @@ export default function Blog20MailerLitePage() {
           onChange={(e) => setForm({ ...form, mailerlite_site_id: e.target.value })}
           disabled={!canEditModule}
         />
+        {meta?.mailerlite_login_email_hint && (
+          <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 0.75rem" }}>
+            Saved bot login: <strong>{meta.mailerlite_login_email_hint}</strong> — leave email
+            blank to keep, or enter a new email to replace
+          </p>
+        )}
         <label>Bot login email</label>
         <input
           type="email"
           value={form.mailerlite_login_email}
           onChange={(e) => setForm({ ...form, mailerlite_login_email: e.target.value })}
+          placeholder={
+            meta?.mailerlite_login_email_hint
+              ? `Saved: ${meta.mailerlite_login_email_hint}`
+              : "bot@yourcompany.com"
+          }
+          autoComplete="off"
           disabled={!canEditModule}
         />
         <label>Bot login password</label>
@@ -289,6 +312,7 @@ export default function Blog20MailerLitePage() {
             setForm({ ...form, mailerlite_login_password: e.target.value })
           }
           placeholder={meta?.has_mailerlite_login ? "Saved — leave blank to keep" : ""}
+          autoComplete="new-password"
           disabled={!canEditModule}
         />
 
