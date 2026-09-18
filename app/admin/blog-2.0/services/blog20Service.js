@@ -25,6 +25,24 @@ export async function testMailerLite(payload = {}) {
   return api.post(`${BASE}/mailerlite/test`, payload);
 }
 
+export async function testMailerLiteBot() {
+  return api.post(`${BASE}/mailerlite/bot/test`, {});
+}
+
+export async function listDrafts() {
+  const data = await api.get(`${BASE}/drafts`);
+  return data.drafts || [];
+}
+
+export async function getDraft(id) {
+  const data = await api.get(`${BASE}/drafts/${id}`);
+  return data.draft;
+}
+
+export async function pushDraftToMailerLite(id) {
+  return api.post(`${BASE}/drafts/${id}/push-mailerlite`, {});
+}
+
 export async function getAgentStatus() {
   return api.get(`${AGENT}/status`);
 }

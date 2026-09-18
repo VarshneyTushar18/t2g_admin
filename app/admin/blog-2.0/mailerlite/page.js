@@ -19,6 +19,11 @@ const EMPTY = {
   mailerlite_from_email: "",
   mailerlite_from_name: "Bright CRM",
   mailerlite_group_id: "",
+  mailerlite_site_id: "196949098888169226",
+  mailerlite_bot_enabled: false,
+  mailerlite_bot_auto_push: false,
+  mailerlite_login_email: "",
+  mailerlite_login_password: "",
   approval_emails: "",
   teams_webhook_url: "",
   timezone: "Asia/Kolkata",
@@ -37,6 +42,7 @@ export default function Blog20MailerLitePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [testingBot, setTestingBot] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [testGroups, setTestGroups] = useState([]);
@@ -69,6 +75,9 @@ export default function Blog20MailerLitePage() {
         mailerlite_from_email: s.mailerlite_from_email || "",
         mailerlite_from_name: s.mailerlite_from_name || EMPTY.mailerlite_from_name,
         mailerlite_group_id: s.mailerlite_group_id || "",
+        mailerlite_site_id: s.mailerlite_site_id || EMPTY.mailerlite_site_id,
+        mailerlite_bot_enabled: Boolean(s.mailerlite_bot_enabled),
+        mailerlite_bot_auto_push: Boolean(s.mailerlite_bot_auto_push),
         approval_emails: (s.approval_emails || []).join(", "),
         teams_webhook_url: s.teams_webhook_url || "",
         timezone: s.timezone || EMPTY.timezone,
@@ -108,6 +117,9 @@ export default function Blog20MailerLitePage() {
         mailerlite_from_email: form.mailerlite_from_email,
         mailerlite_from_name: form.mailerlite_from_name,
         mailerlite_group_id: form.mailerlite_group_id,
+        mailerlite_site_id: form.mailerlite_site_id,
+        mailerlite_bot_enabled: form.mailerlite_bot_enabled,
+        mailerlite_bot_auto_push: form.mailerlite_bot_auto_push,
         approval_emails: form.approval_emails,
         teams_webhook_url: form.teams_webhook_url,
         notes: form.notes,
@@ -115,14 +127,40 @@ export default function Blog20MailerLitePage() {
       if (form.mailerlite_api_key.trim()) {
         payload.mailerlite_api_key = form.mailerlite_api_key.trim();
       }
+      if (form.mailerlite_login_email.trim()) {
+        payload.mailerlite_login_email = form.mailerlite_login_email.trim();
+      }
+      if (form.mailerlite_login_password.trim()) {
+        payload.mailerlite_login_password = form.mailerlite_login_password.trim();
+      }
       const next = await api.saveSettings(payload);
       setMeta(next);
-      setForm((prev) => ({ ...prev, mailerlite_api_key: "" }));
+      setForm((prev) => ({
+        ...prev,
+        mailerlite_api_key: "",
+        mailerlite_login_password: "",
+      }));
       setSuccess("Saved Blog-2.0 MailerLite settings.");
     } catch (err) {
       setError(err.message || "Save failed");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestBot = async () => {
+    if (!canEditModule) return;
+    setTestingBot(true);
+    setError("");
+    setSuccess("");
+    try {
+      await handleSave({ preventDefault: () => {} });
+      const res = await api.testMailerLiteBot();
+      setSuccess(res.message || "Bot login test OK");
+    } catch (err) {
+      setError(err.message || "Bot test failed");
+    } finally {
+      setTestingBot(false);
     }
   };
 
@@ -203,7 +241,58 @@ export default function Blog20MailerLitePage() {
           <option value="excerpt_link">Excerpt + Read more link</option>
         </select>
 
-        <h2 style={{ marginTop: "1rem" }}>MailerLite API</h2>
+        <h2 style={{ marginTop: "1rem" }}>Browser bot (website blog)</h2>
+        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 1rem" }}>
+          Logs into MailerLite like a human and creates blog drafts on the Bright CRM site.
+          Use a dedicated MailerLite login with <strong>2FA disabled</strong>.
+        </p>
+        <label>
+          <input
+            type="checkbox"
+            checked={form.mailerlite_bot_enabled}
+            onChange={(e) =>
+              setForm({ ...form, mailerlite_bot_enabled: e.target.checked })
+            }
+            disabled={!canEditModule}
+          />
+          Enable browser bot
+        </label>
+        <label style={{ display: "block", marginTop: "0.5rem" }}>
+          <input
+            type="checkbox"
+            checked={form.mailerlite_bot_auto_push}
+            onChange={(e) =>
+              setForm({ ...form, mailerlite_bot_auto_push: e.target.checked })
+            }
+            disabled={!canEditModule}
+          />
+          Auto-push to MailerLite after agent saves draft
+        </label>
+        <label>MailerLite site ID</label>
+        <input
+          value={form.mailerlite_site_id}
+          onChange={(e) => setForm({ ...form, mailerlite_site_id: e.target.value })}
+          disabled={!canEditModule}
+        />
+        <label>Bot login email</label>
+        <input
+          type="email"
+          value={form.mailerlite_login_email}
+          onChange={(e) => setForm({ ...form, mailerlite_login_email: e.target.value })}
+          disabled={!canEditModule}
+        />
+        <label>Bot login password</label>
+        <input
+          type="password"
+          value={form.mailerlite_login_password}
+          onChange={(e) =>
+            setForm({ ...form, mailerlite_login_password: e.target.value })
+          }
+          placeholder={meta?.has_mailerlite_login ? "Saved — leave blank to keep" : ""}
+          disabled={!canEditModule}
+        />
+
+        <h2 style={{ marginTop: "1rem" }}>MailerLite API (newsletter)</h2>
         {meta?.has_mailerlite_api_key && (
           <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 0.75rem" }}>
             Saved key: {meta.mailerlite_api_key_hint || "••••"} — leave blank to keep
@@ -294,7 +383,15 @@ export default function Blog20MailerLitePage() {
             onClick={handleTest}
             disabled={!canEditModule || testing}
           >
-            {testing ? "Testing…" : "Test connection"}
+            {testing ? "Testing…" : "Test API"}
+          </button>
+          <button
+            type="button"
+            className="b20-btn b20-btn-secondary"
+            onClick={handleTestBot}
+            disabled={!canEditModule || testingBot}
+          >
+            {testingBot ? "Testing bot…" : "Test bot login"}
           </button>
         </div>
       </form>
