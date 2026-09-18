@@ -70,8 +70,9 @@ export default function Blog20DraftsPage() {
       <div className="b20-hero">
         <h1>Bright CRM drafts</h1>
         <p>
-          Saved by Blog-2.0 agent. Push to MailerLite website with the browser bot, or copy
-          manually from Blog Agent chat.
+          Saved by Blog-2.0 agent. <strong>Test bot login does not create posts here.</strong>{" "}
+          Click <strong>Push to MailerLite</strong> on each draft. New posts appear in MailerLite
+          Posts (often as unpublished drafts — use filter &quot;All posts&quot; or &quot;Drafts&quot;).
         </p>
       </div>
 
