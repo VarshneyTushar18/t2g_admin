@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import * as api from "../services/blog20Service";
 import MailerLiteSessionAlert from "../components/MailerLiteSessionAlert";
+import BotPushProgress from "../components/BotPushProgress";
 import "../blog-2.0.css";
 
-function statusLabel(s) {
+function statusLabel(d) {
+  const s = d.mailerlite_push_status;
   if (s === "pushed") return "On MailerLite";
-  if (s === "processing") return "Pushing…";
+  if (s === "processing") return d.mailerlite_push_step || "Pushing…";
   if (s === "failed") return "Push failed";
   return "Blog-2.0 only";
 }
@@ -27,6 +29,9 @@ export default function Blog20DraftsPage() {
   const [settings, setSettings] = useState(null);
 
   const canEditModule = canEdit("blog_2_0") && !isReadOnly("blog_2_0");
+  const botActive =
+    pushingId != null ||
+    drafts.some((d) => d.mailerlite_push_status === "processing");
 
   useEffect(() => {
     if (authLoading) return;
@@ -49,6 +54,21 @@ export default function Blog20DraftsPage() {
       setLoading(false);
     }
   };
+
+  const refreshDraftsQuiet = async () => {
+    try {
+      const list = await api.listDrafts();
+      setDrafts(list);
+    } catch {
+      /* ignore background refresh errors */
+    }
+  };
+
+  useEffect(() => {
+    if (!botActive) return undefined;
+    const id = setInterval(refreshDraftsQuiet, 3000);
+    return () => clearInterval(id);
+  }, [botActive]);
 
   const handleSendApproval = async (id) => {
     setApprovingId(id);
@@ -101,6 +121,14 @@ export default function Blog20DraftsPage() {
         onRefresh={load}
       />
 
+      <BotPushProgress
+        active={botActive}
+        onComplete={() => {
+          refreshDraftsQuiet();
+          load();
+        }}
+      />
+
       {error && <div className="b20-alert err">{error}</div>}
       {success && <div className="b20-alert ok">{success}</div>}
 
@@ -121,15 +149,31 @@ export default function Blog20DraftsPage() {
             <li key={d.id}>
               <span
                 className={`b20-dot ${
-                  d.mailerlite_push_status === "pushed" ? "done" : "pending"
+                  d.mailerlite_push_status === "pushed"
+                    ? "done"
+                    : d.mailerlite_push_status === "processing"
+                      ? "active"
+                      : "pending"
                 }`}
               />
               <div style={{ flex: 1 }}>
                 <strong>{d.title}</strong>
                 <div style={{ fontSize: "0.85rem", color: "#64748b" }}>
-                  #{d.id} · {statusLabel(d.mailerlite_push_status)}
+                  #{d.id} · {statusLabel(d)}
                   {d.mailerlite_push_error ? ` — ${d.mailerlite_push_error}` : ""}
                 </div>
+                {d.mailerlite_push_status === "processing" && d.mailerlite_push_step && (
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "#7c3aed",
+                      marginTop: "0.2rem",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {d.mailerlite_push_step}
+                  </div>
+                )}
               </div>
               {canEditModule && (
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>

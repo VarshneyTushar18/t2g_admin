@@ -93,6 +93,22 @@
   background: #f59e0b;
 }
 
+.b20-dot.active {
+  background: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
+  animation: b20-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes b20-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
 .b20-dot.optional {
   background: #94a3b8;
 }
