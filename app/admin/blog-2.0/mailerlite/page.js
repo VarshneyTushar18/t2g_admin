@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import * as api from "../services/blog20Service";
+import MailerLiteSessionAlert from "../components/MailerLiteSessionAlert";
 import "../blog-2.0.css";
 
 const EMPTY = {
@@ -211,6 +212,8 @@ export default function Blog20MailerLitePage() {
         <h1>MailerLite</h1>
         <p>Newsletter campaigns for Blog-2.0 — separate from the main Tech2Globe blog.</p>
       </div>
+
+      <MailerLiteSessionAlert settings={meta} />
 
       {error && <div className="b20-alert err">{error}</div>}
       {success && <div className="b20-alert ok">{success}</div>}

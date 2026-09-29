@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import * as api from "./services/blog20Service";
+import MailerLiteSessionAlert from "./components/MailerLiteSessionAlert";
 import "./blog-2.0.css";
 
 export default function Blog20OverviewPage() {
@@ -58,6 +59,8 @@ export default function Blog20OverviewPage() {
           automation. Isolated from the main Tech2Globe Blog module.
         </p>
       </div>
+
+      <MailerLiteSessionAlert settings={data?.settings} />
 
       {error && <div className="b20-alert err">{error}</div>}
 

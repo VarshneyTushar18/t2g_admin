@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import * as api from "../services/blog20Service";
+import MailerLiteSessionAlert from "../components/MailerLiteSessionAlert";
 import "../blog-2.0.css";
 
 function statusLabel(s) {
@@ -22,6 +23,7 @@ export default function Blog20DraftsPage() {
   const [pushingId, setPushingId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [settings, setSettings] = useState(null);
 
   const canEditModule = canEdit("blog_2_0") && !isReadOnly("blog_2_0");
 
@@ -37,8 +39,9 @@ export default function Blog20DraftsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const list = await api.listDrafts();
+      const [list, s] = await Promise.all([api.listDrafts(), api.getSettings()]);
       setDrafts(list);
+      setSettings(s);
     } catch (err) {
       setError(err.message || "Failed to load drafts");
     } finally {
@@ -75,6 +78,8 @@ export default function Blog20DraftsPage() {
           Posts (often as unpublished drafts — use filter &quot;All posts&quot; or &quot;Drafts&quot;).
         </p>
       </div>
+
+      <MailerLiteSessionAlert settings={settings} />
 
       {error && <div className="b20-alert err">{error}</div>}
       {success && <div className="b20-alert ok">{success}</div>}
