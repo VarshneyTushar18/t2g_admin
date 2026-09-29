@@ -21,6 +21,7 @@ export default function Blog20DraftsPage() {
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pushingId, setPushingId] = useState(null);
+  const [approvingId, setApprovingId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [settings, setSettings] = useState(null);
@@ -46,6 +47,21 @@ export default function Blog20DraftsPage() {
       setError(err.message || "Failed to load drafts");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendApproval = async (id) => {
+    setApprovingId(id);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await api.requestDraftApproval(id);
+      const who = (res.recipients || []).join(", ");
+      setSuccess(`Approval email sent for draft #${id}${who ? ` to ${who}` : ""}.`);
+    } catch (err) {
+      setError(err.message || "Failed to send approval email");
+    } finally {
+      setApprovingId(null);
     }
   };
 
@@ -115,15 +131,29 @@ export default function Blog20DraftsPage() {
                   {d.mailerlite_push_error ? ` — ${d.mailerlite_push_error}` : ""}
                 </div>
               </div>
-              {canEditModule && d.mailerlite_push_status !== "pushed" && (
-                <button
-                  type="button"
-                  className="b20-btn b20-btn-primary"
-                  disabled={pushingId === d.id}
-                  onClick={() => handlePush(d.id)}
-                >
-                  {pushingId === d.id ? "Pushing…" : "Push to MailerLite"}
-                </button>
+              {canEditModule && (
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {d.mailerlite_push_status !== "pushed" && (
+                    <>
+                      <button
+                        type="button"
+                        className="b20-btn b20-btn-secondary"
+                        disabled={approvingId === d.id}
+                        onClick={() => handleSendApproval(d.id)}
+                      >
+                        {approvingId === d.id ? "Sending…" : "Send approval email"}
+                      </button>
+                      <button
+                        type="button"
+                        className="b20-btn b20-btn-primary"
+                        disabled={pushingId === d.id}
+                        onClick={() => handlePush(d.id)}
+                      >
+                        {pushingId === d.id ? "Pushing…" : "Push to MailerLite"}
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </li>
           ))}

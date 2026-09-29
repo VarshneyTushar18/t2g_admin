@@ -51,6 +51,14 @@ export async function pushDraftToMailerLite(id) {
   return api.post(`${BASE}/drafts/${id}/push-mailerlite`, {});
 }
 
+export async function testApprovalEmail(payload = {}) {
+  return api.post(`${BASE}/approvals/test-email`, payload);
+}
+
+export async function requestDraftApproval(id) {
+  return api.post(`${BASE}/drafts/${id}/request-approval`, {});
+}
+
 export async function getAgentStatus() {
   return api.get(`${AGENT}/status`);
 }

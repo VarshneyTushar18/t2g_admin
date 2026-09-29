@@ -44,6 +44,7 @@ export default function Blog20MailerLitePage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testingBot, setTestingBot] = useState(false);
+  const [testingApproval, setTestingApproval] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [testGroups, setTestGroups] = useState([]);
@@ -176,6 +177,35 @@ export default function Blog20MailerLitePage() {
       setError(err.message || "Bot test failed");
     } finally {
       setTestingBot(false);
+    }
+  };
+
+  const handleTestApprovalEmail = async () => {
+    if (!canEditModule) return;
+    const emails = form.approval_emails
+      .split(/[,;\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!emails.length) {
+      setError("Add at least one approval email above, then save or test.");
+      return;
+    }
+    setTestingApproval(true);
+    setError("");
+    setSuccess("");
+    try {
+      await handleSave({ preventDefault: () => {} });
+      const res = await api.testApprovalEmail({ emails: emails.join(", ") });
+      const list = (res.recipients || emails).join(", ");
+      setSuccess(
+        res.note
+          ? `Test approval email sent to ${list}. ${res.note}`
+          : `Test approval email sent to ${list}. Check inbox for Preview / Yes / No buttons.`,
+      );
+    } catch (err) {
+      setError(err.message || "Approval email test failed");
+    } finally {
+      setTestingApproval(false);
     }
   };
 
@@ -392,7 +422,11 @@ export default function Blog20MailerLitePage() {
           value={form.approval_emails}
           onChange={(e) => setForm({ ...form, approval_emails: e.target.value })}
           disabled={!canEditModule}
+          placeholder="you@company.com, teammate@company.com"
         />
+        <p style={{ margin: "0.35rem 0 0.75rem", fontSize: "0.85rem", color: "#64748b" }}>
+          When the agent saves a draft, these addresses get Preview + Yes/No links. Yes starts the MailerLite bot.
+        </p>
         <label>Teams webhook URL (optional)</label>
         <input
           value={form.teams_webhook_url}
@@ -426,6 +460,14 @@ export default function Blog20MailerLitePage() {
             disabled={!canEditModule || testingBot}
           >
             {testingBot ? "Testing bot…" : "Test bot login"}
+          </button>
+          <button
+            type="button"
+            className="b20-btn b20-btn-secondary"
+            onClick={handleTestApprovalEmail}
+            disabled={!canEditModule || testingApproval}
+          >
+            {testingApproval ? "Sending…" : "Test approval email"}
           </button>
         </div>
       </form>
