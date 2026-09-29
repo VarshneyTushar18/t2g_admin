@@ -79,7 +79,11 @@ export default function Blog20DraftsPage() {
         </p>
       </div>
 
-      <MailerLiteSessionAlert settings={settings} />
+      <MailerLiteSessionAlert
+        settings={settings}
+        canEdit={canEditModule}
+        onRefresh={load}
+      />
 
       {error && <div className="b20-alert err">{error}</div>}
       {success && <div className="b20-alert ok">{success}</div>}

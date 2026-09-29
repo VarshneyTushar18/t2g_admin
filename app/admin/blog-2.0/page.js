@@ -60,7 +60,7 @@ export default function Blog20OverviewPage() {
         </p>
       </div>
 
-      <MailerLiteSessionAlert settings={data?.settings} />
+      <MailerLiteSessionAlert settings={data?.settings} onRefresh={load} />
 
       {error && <div className="b20-alert err">{error}</div>}
 

@@ -213,7 +213,11 @@ export default function Blog20MailerLitePage() {
         <p>Newsletter campaigns for Blog-2.0 — separate from the main Tech2Globe blog.</p>
       </div>
 
-      <MailerLiteSessionAlert settings={meta} />
+      <MailerLiteSessionAlert
+        settings={meta}
+        canEdit={canEditModule}
+        onRefresh={load}
+      />
 
       {error && <div className="b20-alert err">{error}</div>}
       {success && <div className="b20-alert ok">{success}</div>}
