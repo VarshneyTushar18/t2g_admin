@@ -23,6 +23,7 @@ const EMPTY = {
   mailerlite_site_id: "196949098888169226",
   mailerlite_bot_enabled: false,
   mailerlite_bot_auto_push: false,
+  mailerlite_allow_direct_publish: true,
   mailerlite_login_email: "",
   mailerlite_login_password: "",
   approval_emails: "",
@@ -80,6 +81,7 @@ export default function Blog20MailerLitePage() {
         mailerlite_site_id: s.mailerlite_site_id || EMPTY.mailerlite_site_id,
         mailerlite_bot_enabled: Boolean(s.mailerlite_bot_enabled),
         mailerlite_bot_auto_push: Boolean(s.mailerlite_bot_auto_push),
+        mailerlite_allow_direct_publish: s.mailerlite_allow_direct_publish !== false,
         approval_emails: (s.approval_emails || []).join(", "),
         teams_webhook_url: s.teams_webhook_url || "",
         timezone: s.timezone || EMPTY.timezone,
@@ -122,6 +124,7 @@ export default function Blog20MailerLitePage() {
         mailerlite_site_id: form.mailerlite_site_id,
         mailerlite_bot_enabled: form.mailerlite_bot_enabled,
         mailerlite_bot_auto_push: form.mailerlite_bot_auto_push,
+        mailerlite_allow_direct_publish: form.mailerlite_allow_direct_publish,
         approval_emails: form.approval_emails,
         teams_webhook_url: form.teams_webhook_url,
         notes: form.notes,
@@ -319,6 +322,20 @@ export default function Blog20MailerLitePage() {
           />
           Auto-push to MailerLite after agent saves draft
         </label>
+        <label style={{ display: "block", marginTop: "0.5rem" }}>
+          <input
+            type="checkbox"
+            checked={form.mailerlite_allow_direct_publish}
+            onChange={(e) =>
+              setForm({ ...form, mailerlite_allow_direct_publish: e.target.checked })
+            }
+            disabled={!canEditModule}
+          />
+          Show &quot;Publish live&quot; option in approval emails
+        </label>
+        <p style={{ fontSize: "0.82rem", color: "#64748b", margin: "0.25rem 0 1rem" }}>
+          Approvers can choose Save as draft or Publish live on the client website.
+        </p>
         <label>MailerLite site ID</label>
         <input
           value={form.mailerlite_site_id}

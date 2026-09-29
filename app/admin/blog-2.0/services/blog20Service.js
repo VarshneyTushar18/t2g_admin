@@ -47,8 +47,10 @@ export async function getDraft(id) {
   return data.draft;
 }
 
-export async function pushDraftToMailerLite(id) {
-  return api.post(`${BASE}/drafts/${id}/push-mailerlite`, {});
+export async function pushDraftToMailerLite(id, { publishLive = false } = {}) {
+  return api.post(`${BASE}/drafts/${id}/push-mailerlite`, {
+    publish_live: publishLive,
+  });
 }
 
 export async function testApprovalEmail(payload = {}) {

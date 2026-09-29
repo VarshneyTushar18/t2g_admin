@@ -85,13 +85,18 @@ export default function Blog20DraftsPage() {
     }
   };
 
-  const handlePush = async (id) => {
+  const handlePush = async (id, publishLive = false) => {
     setPushingId(id);
     setError("");
     setSuccess("");
     try {
-      const res = await api.pushDraftToMailerLite(id);
-      setSuccess(res.note || `Draft ${id} pushed to MailerLite.`);
+      const res = await api.pushDraftToMailerLite(id, { publishLive });
+      setSuccess(
+        res.note ||
+          (publishLive
+            ? `Draft ${id} published live on MailerLite.`
+            : `Draft ${id} saved as draft on MailerLite.`),
+      );
       await load();
     } catch (err) {
       setError(err.message || "Push failed");
@@ -189,12 +194,22 @@ export default function Blog20DraftsPage() {
                       </button>
                       <button
                         type="button"
-                        className="b20-btn b20-btn-primary"
+                        className="b20-btn b20-btn-secondary"
                         disabled={pushingId === d.id}
-                        onClick={() => handlePush(d.id)}
+                        onClick={() => handlePush(d.id, false)}
                       >
-                        {pushingId === d.id ? "Pushing…" : "Push to MailerLite"}
+                        {pushingId === d.id ? "Working…" : "Save as draft"}
                       </button>
+                      {settings?.mailerlite_allow_direct_publish !== false && (
+                        <button
+                          type="button"
+                          className="b20-btn b20-btn-primary"
+                          disabled={pushingId === d.id}
+                          onClick={() => handlePush(d.id, true)}
+                        >
+                          {pushingId === d.id ? "Working…" : "Publish live"}
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
