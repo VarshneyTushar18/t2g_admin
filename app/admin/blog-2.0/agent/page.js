@@ -144,7 +144,7 @@ export default function Blog20AgentPage() {
   }
 
   return (
-    <div className="b20-page">
+    <div className="b20-page b20-page-agent">
       <div className="b20-hero">
         <h1>Blog Agent</h1>
         <p>
@@ -169,34 +169,36 @@ export default function Blog20AgentPage() {
           >
             New chat
           </button>
-          {threads.map((t) => (
-            <div
-              key={t.id}
-              className={`b20-thread-row${t.id === activeThreadId ? " active" : ""}`}
-            >
-              <button
-                type="button"
-                className="b20-thread-item"
-                onClick={() => selectThread(t.id)}
-                disabled={deletingThreadId === t.id}
+          <div className="b20-thread-scroll">
+            {threads.map((t) => (
+              <div
+                key={t.id}
+                className={`b20-thread-row${t.id === activeThreadId ? " active" : ""}`}
               >
-                {(t.title || "Untitled chat").slice(0, 48)}
-              </button>
-              <button
-                type="button"
-                className="b20-thread-delete"
-                title="Delete chat"
-                aria-label={`Delete chat ${t.title || "Untitled"}`}
-                disabled={deletingThreadId === t.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteThread(t);
-                }}
-              >
-                {deletingThreadId === t.id ? "…" : "×"}
-              </button>
-            </div>
-          ))}
+                <button
+                  type="button"
+                  className="b20-thread-item"
+                  onClick={() => selectThread(t.id)}
+                  disabled={deletingThreadId === t.id}
+                >
+                  {(t.title || "Untitled chat").slice(0, 48)}
+                </button>
+                <button
+                  type="button"
+                  className="b20-thread-delete"
+                  title="Delete chat"
+                  aria-label={`Delete chat ${t.title || "Untitled"}`}
+                  disabled={deletingThreadId === t.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteThread(t);
+                  }}
+                >
+                  {deletingThreadId === t.id ? "…" : "×"}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="b20-chat">
