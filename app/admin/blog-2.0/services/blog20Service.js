@@ -47,6 +47,10 @@ export async function getDraft(id) {
   return data.draft;
 }
 
+export async function deleteDraft(id) {
+  return api.delete(`${BASE}/drafts/${id}`);
+}
+
 export async function pushDraftToMailerLite(id, { publishLive = false } = {}) {
   return api.post(`${BASE}/drafts/${id}/push-mailerlite`, {
     publish_live: publishLive,

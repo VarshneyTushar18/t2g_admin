@@ -24,6 +24,7 @@ export default function Blog20DraftsPage() {
   const [loading, setLoading] = useState(true);
   const [pushingId, setPushingId] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [settings, setSettings] = useState(null);
@@ -85,6 +86,28 @@ export default function Blog20DraftsPage() {
     }
   };
 
+  const handleDelete = async (d) => {
+    const onMailerLite = d.mailerlite_push_status === "pushed";
+    const ok = window.confirm(
+      onMailerLite
+        ? `Delete draft #${d.id} from Admin?\n\n"${d.title}"\n\nThis does NOT remove the post from MailerLite — only hides it from this list.`
+        : `Delete draft #${d.id}?\n\n"${d.title}"`,
+    );
+    if (!ok) return;
+    setDeletingId(d.id);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await api.deleteDraft(d.id);
+      setSuccess(res.note || `Draft #${d.id} deleted.`);
+      await load();
+    } catch (err) {
+      setError(err.message || "Failed to delete draft");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handlePush = async (id, publishLive = false) => {
     setPushingId(id);
     setError("");
@@ -114,9 +137,9 @@ export default function Blog20DraftsPage() {
       <div className="b20-hero">
         <h1>Bright CRM drafts</h1>
         <p>
-          Saved by Blog-2.0 agent. <strong>Test bot login does not create posts here.</strong>{" "}
-          Click <strong>Push to MailerLite</strong> on each draft. New posts appear in MailerLite
-          Posts (often as unpublished drafts — use filter &quot;All posts&quot; or &quot;Drafts&quot;).
+          Each time the Blog Agent saves a post, a <strong>new row</strong> is added here — repeated
+          tests create duplicates with the same title. Use <strong>Delete</strong> to clean up.
+          Deleting only removes the Admin record; posts already on MailerLite stay there.
         </p>
       </div>
 
@@ -181,7 +204,7 @@ export default function Blog20DraftsPage() {
                 )}
               </div>
               {canEditModule && (
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
                   {d.mailerlite_push_status !== "pushed" && (
                     <>
                       <button
@@ -212,6 +235,15 @@ export default function Blog20DraftsPage() {
                       )}
                     </>
                   )}
+                  <button
+                    type="button"
+                    className="b20-btn b20-btn-secondary"
+                    disabled={deletingId === d.id}
+                    onClick={() => handleDelete(d)}
+                    style={{ color: "#b91c1c", borderColor: "#fecaca" }}
+                  >
+                    {deletingId === d.id ? "Deleting…" : "Delete"}
+                  </button>
                 </div>
               )}
             </li>
