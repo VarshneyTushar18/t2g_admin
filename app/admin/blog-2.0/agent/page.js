@@ -17,6 +17,7 @@ export default function Blog20AgentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [agentReady, setAgentReady] = useState(null);
+  const [deletingThreadId, setDeletingThreadId] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -74,6 +75,26 @@ export default function Blog20AgentPage() {
     setMessages([]);
     setInput("");
     inputRef.current?.focus();
+  };
+
+  const deleteThread = async (thread) => {
+    const title = (thread.title || "Untitled chat").slice(0, 60);
+    const ok = window.confirm(`Delete this chat?\n\n"${title}"`);
+    if (!ok) return;
+
+    setDeletingThreadId(thread.id);
+    setError("");
+    try {
+      await agentApi.deleteThread(thread.id);
+      setThreads((prev) => prev.filter((t) => t.id !== thread.id));
+      if (activeThreadId === thread.id) {
+        newChat();
+      }
+    } catch (err) {
+      setError(err.message || "Failed to delete chat");
+    } finally {
+      setDeletingThreadId(null);
+    }
   };
 
   const send = async () => {
@@ -149,14 +170,32 @@ export default function Blog20AgentPage() {
             New chat
           </button>
           {threads.map((t) => (
-            <button
+            <div
               key={t.id}
-              type="button"
-              className={`b20-thread-item${t.id === activeThreadId ? " active" : ""}`}
-              onClick={() => selectThread(t.id)}
+              className={`b20-thread-row${t.id === activeThreadId ? " active" : ""}`}
             >
-              {(t.title || "Untitled chat").slice(0, 48)}
-            </button>
+              <button
+                type="button"
+                className="b20-thread-item"
+                onClick={() => selectThread(t.id)}
+                disabled={deletingThreadId === t.id}
+              >
+                {(t.title || "Untitled chat").slice(0, 48)}
+              </button>
+              <button
+                type="button"
+                className="b20-thread-delete"
+                title="Delete chat"
+                aria-label={`Delete chat ${t.title || "Untitled"}`}
+                disabled={deletingThreadId === t.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteThread(t);
+                }}
+              >
+                {deletingThreadId === t.id ? "…" : "×"}
+              </button>
+            </div>
           ))}
         </div>
 
