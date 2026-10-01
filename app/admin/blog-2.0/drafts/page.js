@@ -17,6 +17,13 @@ function statusLabel(d) {
   return "Blog-2.0 only";
 }
 
+function shortErrorMessage(message, max = 120) {
+  const text = String(message || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}…`;
+}
+
 export default function Blog20DraftsPage() {
   const router = useRouter();
   const { loading: authLoading, canView, canEdit, isReadOnly } = useAuth();
@@ -25,6 +32,8 @@ export default function Blog20DraftsPage() {
   const [pushingId, setPushingId] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [settings, setSettings] = useState(null);
@@ -71,6 +80,14 @@ export default function Blog20DraftsPage() {
     return () => clearInterval(id);
   }, [botActive]);
 
+  useEffect(() => {
+    const validIds = new Set(drafts.map((d) => d.id));
+    setSelectedIds((prev) => {
+      const next = new Set([...prev].filter((id) => validIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [drafts]);
+
   const handleSendApproval = async (id) => {
     setApprovingId(id);
     setError("");
@@ -83,6 +100,60 @@ export default function Blog20DraftsPage() {
       setError(err.message || "Failed to send approval email");
     } finally {
       setApprovingId(null);
+    }
+  };
+
+  const toggleSelected = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectableDrafts = drafts.filter((d) => d.mailerlite_push_status !== "processing");
+  const allSelected =
+    selectableDrafts.length > 0 &&
+    selectableDrafts.every((d) => selectedIds.has(d.id));
+  const selectedCount = selectedIds.size;
+
+  const handleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectedIds(new Set(selectableDrafts.map((d) => d.id)));
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+
+    const selectedDrafts = drafts.filter((d) => selectedIds.has(d.id));
+    const onMailerLite = selectedDrafts.filter(
+      (d) => d.mailerlite_push_status === "pushed",
+    ).length;
+    const ok = window.confirm(
+      `Delete ${ids.length} selected draft${ids.length === 1 ? "" : "s"} from Admin?` +
+        (onMailerLite
+          ? `\n\n${onMailerLite} of them are on MailerLite — those posts will stay on the website.`
+          : ""),
+    );
+    if (!ok) return;
+
+    setBulkDeleting(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await api.deleteDraftsBulk(ids);
+      setSuccess(res.note || `Deleted ${ids.length} drafts.`);
+      setSelectedIds(new Set());
+      await load();
+    } catch (err) {
+      setError(err.message || "Failed to delete selected drafts");
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -172,35 +243,73 @@ export default function Blog20DraftsPage() {
 
         {!drafts.length && <p>No drafts yet. Use Blog Agent to create one.</p>}
 
+        {canEditModule && drafts.length > 0 && (
+          <div className="b20-draft-toolbar">
+            <label className="b20-draft-select-all">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={handleSelectAll}
+                disabled={!selectableDrafts.length || bulkDeleting}
+              />
+              Select all
+            </label>
+            {selectedCount > 0 && (
+              <button
+                type="button"
+                className="b20-btn b20-btn-secondary b20-btn-danger"
+                disabled={bulkDeleting}
+                onClick={handleBulkDelete}
+              >
+                {bulkDeleting
+                  ? "Deleting…"
+                  : `Delete selected (${selectedCount})`}
+              </button>
+            )}
+          </div>
+        )}
+
         <ul className="b20-checklist">
           {drafts.map((d) => (
             <li key={d.id}>
+              {canEditModule && (
+                <input
+                  type="checkbox"
+                  className="b20-draft-checkbox"
+                  checked={selectedIds.has(d.id)}
+                  disabled={
+                    d.mailerlite_push_status === "processing" || bulkDeleting
+                  }
+                  onChange={() => toggleSelected(d.id)}
+                  aria-label={`Select draft ${d.id}`}
+                />
+              )}
               <span
                 className={`b20-dot ${
                   d.mailerlite_push_status === "pushed"
                     ? "done"
                     : d.mailerlite_push_status === "processing"
                       ? "active"
-                      : "pending"
+                      : d.mailerlite_push_status === "failed"
+                        ? "failed"
+                        : "pending"
                 }`}
               />
-              <div style={{ flex: 1 }}>
-                <strong>{d.title}</strong>
-                <div style={{ fontSize: "0.85rem", color: "#64748b" }}>
+              <div className="b20-draft-main">
+                <strong className="b20-draft-title">{d.title}</strong>
+                <div className="b20-draft-meta">
                   #{d.id} · {statusLabel(d)}
-                  {d.mailerlite_push_error ? ` — ${d.mailerlite_push_error}` : ""}
                 </div>
                 {d.mailerlite_push_status === "processing" && d.mailerlite_push_step && (
-                  <div
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "#7c3aed",
-                      marginTop: "0.2rem",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {d.mailerlite_push_step}
-                  </div>
+                  <div className="b20-draft-step">{d.mailerlite_push_step}</div>
+                )}
+                {d.mailerlite_push_status === "failed" && d.mailerlite_push_error && (
+                  <details className="b20-push-error">
+                    <summary>
+                      {shortErrorMessage(d.mailerlite_push_error)}
+                    </summary>
+                    <pre>{d.mailerlite_push_error}</pre>
+                  </details>
                 )}
               </div>
               {canEditModule && (

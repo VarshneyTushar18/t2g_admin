@@ -51,6 +51,10 @@ export async function deleteDraft(id) {
   return api.delete(`${BASE}/drafts/${id}`);
 }
 
+export async function deleteDraftsBulk(ids) {
+  return api.post(`${BASE}/drafts/bulk-delete`, { ids });
+}
+
 export async function pushDraftToMailerLite(id, { publishLive = false } = {}) {
   return api.post(`${BASE}/drafts/${id}/push-mailerlite`, {
     publish_live: publishLive,

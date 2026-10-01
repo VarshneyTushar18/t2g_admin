@@ -99,6 +99,106 @@
   animation: b20-pulse 1.5s ease-in-out infinite;
 }
 
+.b20-dot.failed {
+  background: #dc2626;
+}
+
+.b20-draft-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.b20-draft-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+}
+
+.b20-draft-checkbox {
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.b20-draft-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.b20-draft-title {
+  display: block;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.b20-draft-meta {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
+
+.b20-draft-step {
+  font-size: 0.8rem;
+  color: #7c3aed;
+  margin-top: 0.2rem;
+  font-weight: 500;
+}
+
+.b20-push-error {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: #b91c1c;
+}
+
+.b20-push-error summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.b20-push-error summary::-webkit-details-marker {
+  display: none;
+}
+
+.b20-push-error summary::before {
+  content: "▸ ";
+  color: #dc2626;
+}
+
+.b20-push-error[open] summary::before {
+  content: "▾ ";
+}
+
+.b20-push-error pre {
+  margin: 0.35rem 0 0;
+  padding: 0.5rem 0.65rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #7f1d1d;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.b20-btn-danger {
+  color: #b91c1c !important;
+  border-color: #fecaca !important;
+}
+
 @keyframes b20-pulse {
   0%,
   100% {
