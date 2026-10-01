@@ -325,6 +325,76 @@
   padding: 0.75rem;
 }
 
+.b20-new-chat-btn {
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.b20-new-chat-btn.active {
+  box-shadow: 0 0 0 2px #c4b5fd;
+}
+
+.b20-thread-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem;
+  margin-bottom: 0.35rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #334155;
+  line-height: 1.35;
+}
+
+.b20-thread-item.active {
+  border-color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.b20-chat-welcome {
+  max-width: 520px;
+  margin: 2rem auto 1rem;
+  text-align: center;
+  color: #475569;
+}
+
+.b20-chat-welcome h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  color: #0f172a;
+}
+
+.b20-chat-welcome p {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.b20-chat-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.b20-chat-suggestion {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.85rem;
+  color: #475569;
+  cursor: pointer;
+  text-align: left;
+}
+
+.b20-chat-suggestion:hover {
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+}
+
 .b20-chat {
   background: #fff;
   border: 1px solid #e2e8f0;

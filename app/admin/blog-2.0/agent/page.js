@@ -18,6 +18,9 @@ export default function Blog20AgentPage() {
   const [error, setError] = useState("");
   const [agentReady, setAgentReady] = useState(null);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  const isNewChat = activeThreadId == null;
 
   useEffect(() => {
     if (authLoading) return;
@@ -36,14 +39,21 @@ export default function Blog20AgentPage() {
       setAgentReady(status?.configured);
       const list = await agentApi.listThreads();
       setThreads(list);
-      // Only Blog-2.0 threads (agent_type blog_2_0) — never Tech2Globe Blog chats
-      if (list[0]?.id) {
-        await selectThread(list[0].id);
-      }
+      setActiveThreadId(null);
+      setMessages([]);
     } catch (err) {
       setError(err.message || "Failed to load agent");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshThreads = async () => {
+    try {
+      const list = await agentApi.listThreads();
+      setThreads(list);
+    } catch {
+      /* ignore */
     }
   };
 
@@ -58,16 +68,12 @@ export default function Blog20AgentPage() {
     }
   }, []);
 
-  const newChat = async () => {
+  const newChat = () => {
     setError("");
-    try {
-      const thread = await agentApi.createThread("Blog-2.0 chat");
-      setThreads((prev) => [thread, ...prev]);
-      setActiveThreadId(thread.id);
-      setMessages([]);
-    } catch (err) {
-      setError(err.message || "Could not start chat");
-    }
+    setActiveThreadId(null);
+    setMessages([]);
+    setInput("");
+    inputRef.current?.focus();
   };
 
   const send = async () => {
@@ -78,7 +84,7 @@ export default function Blog20AgentPage() {
     try {
       let threadId = activeThreadId;
       if (!threadId) {
-        const thread = await agentApi.createThread("Blog-2.0 chat");
+        const thread = await agentApi.createThread();
         threadId = thread.id;
         setActiveThreadId(threadId);
         setThreads((prev) => [thread, ...prev]);
@@ -88,14 +94,21 @@ export default function Blog20AgentPage() {
         ...prev,
         { id: `local-${Date.now()}`, role: "user", content: text },
       ]);
-      const res = await agentApi.sendMessage(threadId, text);
+      await agentApi.sendMessage(threadId, text);
       const msgs = await agentApi.getMessages(threadId);
       setMessages(msgs);
-      if (res?.output) {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }
+      await refreshThreads();
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (err) {
       setError(err.message || "Send failed");
+      if (activeThreadId) {
+        try {
+          const msgs = await agentApi.getMessages(activeThreadId);
+          setMessages(msgs);
+        } catch {
+          /* ignore */
+        }
+      }
     } finally {
       setSending(false);
     }
@@ -114,8 +127,8 @@ export default function Blog20AgentPage() {
       <div className="b20-hero">
         <h1>Blog Agent</h1>
         <p>
-          Bright CRM only — separate from Tech2Globe Blog. Drafts save for MailerLite
-          website (not tech2globe.com). Chats here are isolated from the main Blog Agent.
+          Bright CRM only — separate from Tech2Globe Blog. Describe a topic and the agent
+          writes the draft and sends the approval email automatically.
         </p>
       </div>
 
@@ -128,29 +141,21 @@ export default function Blog20AgentPage() {
 
       <div className="b20-agent-wrap">
         <div className="b20-thread-list">
-          <button type="button" className="b20-btn b20-btn-primary" onClick={newChat} style={{ width: "100%", marginBottom: "0.75rem" }}>
+          <button
+            type="button"
+            className={`b20-btn b20-btn-primary b20-new-chat-btn${isNewChat ? " active" : ""}`}
+            onClick={newChat}
+          >
             New chat
           </button>
           {threads.map((t) => (
             <button
               key={t.id}
               type="button"
+              className={`b20-thread-item${t.id === activeThreadId ? " active" : ""}`}
               onClick={() => selectThread(t.id)}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "0.5rem",
-                marginBottom: "0.35rem",
-                border: "1px solid",
-                borderColor: t.id === activeThreadId ? "#7c3aed" : "#e2e8f0",
-                borderRadius: "8px",
-                background: t.id === activeThreadId ? "#f5f3ff" : "#fff",
-                cursor: "pointer",
-                fontSize: "0.8rem",
-              }}
             >
-              {(t.title || "Chat").slice(0, 40)}
+              {(t.title || "Untitled chat").slice(0, 48)}
             </button>
           ))}
         </div>
@@ -158,10 +163,28 @@ export default function Blog20AgentPage() {
         <div className="b20-chat">
           <div className="b20-messages">
             {messages.length === 0 && (
-              <p style={{ color: "#64748b", fontSize: "0.9rem" }}>
-                Ask for a blog post — e.g. &quot;Write a draft about CRM automation for
-                small businesses&quot;
-              </p>
+              <div className="b20-chat-welcome">
+                <h2>What blog should I write?</h2>
+                <p>
+                  Give a topic in one message — title, audience, and keyword are optional.
+                  I&apos;ll write the draft and trigger the approval email.
+                </p>
+                <div className="b20-chat-suggestions">
+                  {[
+                    "Write about agentic CRM for small construction teams",
+                    "Draft: How CRM automation saves time on site visits",
+                  ].map((sample) => (
+                    <button
+                      key={sample}
+                      type="button"
+                      className="b20-chat-suggestion"
+                      onClick={() => setInput(sample)}
+                    >
+                      {sample}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {messages.map((m) => (
               <div key={m.id} className={`b20-msg ${m.role}`}>
@@ -172,9 +195,10 @@ export default function Blog20AgentPage() {
           </div>
           <div className="b20-chat-input">
             <textarea
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Message Blog-2.0 agent…"
+              placeholder="Describe the blog you want…"
               rows={2}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
