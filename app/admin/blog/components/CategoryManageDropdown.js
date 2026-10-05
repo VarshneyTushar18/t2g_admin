@@ -38,14 +38,16 @@ export default function CategoryManageDropdown({
           align-items: center;
           justify-content: space-between;
           gap: 8px;
-          padding: 9px 12px;
-          border: 1.5px solid #e0e3e8;
-          border-radius: 8px;
+          padding: 10px 14px;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 10px;
           background: #fff;
           font-size: 13px;
-          color: #1a1a2e;
+          font-weight: 600;
+          color: #334155;
           cursor: pointer;
         }
+        .cmd-trigger:hover { border-color: #16a37f; }
         .cmd-menu {
           position: absolute;
           top: calc(100% + 4px);

@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 
+function formatStatus(status) {
+  if (status === "publish") return "Published";
+  if (status === "draft") return "Draft";
+  if (status === "pending") return "Pending";
+  return status || "—";
+}
+
 export default function BlogTable({
   items = [],
   categories = [],
@@ -9,39 +16,30 @@ export default function BlogTable({
   canEdit = true,
   canDelete = true,
 }) {
-  const categoryName = (ids = []) => {
-    if (!Array.isArray(ids) || !ids.length) return "—";
-    const names = ids
+  const categoryNames = (ids = []) => {
+    if (!Array.isArray(ids) || !ids.length) return [];
+    return ids
       .map((id) => categories.find((c) => c.id === id)?.name)
       .filter(Boolean);
-    return names.length ? names.join(", ") : "—";
   };
 
   if (!items.length) {
     return (
       <div className="blog-empty">
-        <p>No blog posts found.</p>
-        <p className="blog-empty-hint">Create a post or adjust your search.</p>
-        <style>{`
-          .blog-empty {
-            text-align: center;
-            padding: 48px 16px;
-            color: #64748b;
-          }
-          .blog-empty-hint { font-size: 13px; margin-top: 8px; }
-        `}</style>
+        <div className="blog-empty-icon">📝</div>
+        <h3>No posts found</h3>
+        <p>Create a new post or try a different search.</p>
       </div>
     );
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div className="blog-table-wrap">
       <table className="blog-table">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Posted by</th>
+            <th>Post</th>
+            <th>Author</th>
             <th>Views</th>
             <th>Status</th>
             <th>Categories</th>
@@ -50,98 +48,97 @@ export default function BlogTable({
           </tr>
         </thead>
         <tbody>
-          {items.map((item) => (
-            <tr key={item.id}>
-              <td>{item.id}</td>
-              <td>
-                <div style={{ fontWeight: 600 }}>{item.title}</div>
-                <div className="blog-slug">{item.slug}</div>
-                {item.link && (
-                  <a
-                    href={item.link}
-                    className="blog-link"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View on site
-                  </a>
-                )}
-              </td>
-              <td>{item.author || item.author_name || "—"}</td>
-              <td>{Number(item.view_count || 0).toLocaleString()}</td>
-              <td>
-                <span className={`blog-status blog-status-${item.status}`}>
-                  {item.status}
-                </span>
-              </td>
-              <td>{categoryName(item.categories)}</td>
-              <td>{item.date ? new Date(item.date).toLocaleDateString() : "—"}</td>
-              <td>
-                <div className="blog-actions">
-                  {canEdit && (
-                    <Link
-                      href={`/admin/blog/edit/${item.id}`}
-                      className="btn btn-edit"
-                      style={{ textDecoration: "none", display: "inline-block" }}
-                    >
-                      Edit
-                    </Link>
+          {items.map((item) => {
+            const cats = categoryNames(item.categories);
+            const siteLink = item.link
+              ? item.link.startsWith("http")
+                ? item.link
+                : `https://www.tech2globe.com${item.link}`
+              : null;
+
+            return (
+              <tr key={item.id}>
+                <td data-label="Post">
+                  <div className="blog-post-cell">
+                    {item.featured_image ? (
+                      <img
+                        src={item.featured_image}
+                        alt=""
+                        className="blog-thumb"
+                      />
+                    ) : (
+                      <div className="blog-thumb blog-thumb-empty">📄</div>
+                    )}
+                    <div>
+                      <div className="blog-post-title">{item.title || "Untitled"}</div>
+                      <div className="blog-slug">/blogs/{item.slug || "—"}</div>
+                      {siteLink && (
+                        <a
+                          href={siteLink}
+                          className="blog-view-link"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View live →
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </td>
+                <td data-label="Author">{item.author || item.author_name || "—"}</td>
+                <td data-label="Views">{Number(item.view_count || 0).toLocaleString()}</td>
+                <td data-label="Status">
+                  <span className={`blog-status blog-status-${item.status}`}>
+                    {formatStatus(item.status)}
+                  </span>
+                </td>
+                <td data-label="Categories">
+                  {cats.length ? (
+                    <div className="blog-cat-pills">
+                      {cats.map((name) => (
+                        <span key={name} className="blog-cat-pill">{name}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
                   )}
-                  {canDelete && (
-                    <button
-                      type="button"
-                      className="btn btn-delete"
-                      onClick={() => onDelete(item)}
-                    >
-                      Delete
-                    </button>
-                  )}
-                  {!canEdit && !canDelete && (
-                    <span className="blog-view-only">View only</span>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td data-label="Date">
+                  {item.date ? new Date(item.date).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  }) : "—"}
+                </td>
+                <td data-label="Actions">
+                  <div className="blog-row-actions">
+                    {canEdit && (
+                      <Link
+                        href={`/admin/blog/edit/${item.id}`}
+                        className="blog-row-btn blog-row-btn-edit"
+                      >
+                        Edit
+                      </Link>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="blog-row-btn blog-row-btn-delete"
+                        onClick={() => onDelete(item)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                    {!canEdit && !canDelete && (
+                      <span style={{ fontSize: 12, color: "#94a3b8" }}>View only</span>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-
-      <style>{`
-        .blog-table { width: 100%; border-collapse: collapse; }
-        .blog-table th {
-          text-align: left; padding: 10px; background: #f5f7fa; font-size: 13px;
-        }
-        .blog-table td {
-          padding: 10px; border-bottom: 1px solid #eee; vertical-align: top;
-        }
-        .blog-slug { font-size: 11px; color: #888; word-break: break-all; }
-        .blog-link { font-size: 11px; color: #4f8ef7; text-decoration: none; display: inline-block; margin-top: 4px; }
-        .blog-link:hover { text-decoration: underline; }
-        .blog-status {
-          display: inline-block; padding: 3px 8px; border-radius: 999px;
-          font-size: 11px; font-weight: 700; text-transform: uppercase;
-        }
-        .blog-status-publish { background: #d1fae5; color: #065f46; }
-        .blog-status-draft { background: #fef3c7; color: #92400e; }
-        .blog-status-pending { background: #e0e7ff; color: #3730a3; }
-        .blog-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-        .blog-view-only { font-size: 12px; color: #94a3b8; }
-        .btn {
-          padding: 6px 10px; font-size: 12px; border-radius: 6px;
-          border: none; cursor: pointer;
-        }
-        .btn-edit { background: #4f8ef7; color: #fff; }
-        .btn-delete { background: #e74c3c; color: #fff; }
-        .btn-delete:hover { background: #c0392b; }
-        @media (max-width: 768px) {
-          .blog-table thead { display: none; }
-          .blog-table tr {
-            display: block; margin-bottom: 12px; border: 1px solid #eee;
-            border-radius: 8px; padding: 10px;
-          }
-          .blog-table td { display: block; border: none; padding: 6px 0; }
-        }
-      `}</style>
     </div>
   );
 }

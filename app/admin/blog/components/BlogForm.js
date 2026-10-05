@@ -2,8 +2,10 @@
 import { useRef, useState } from "react";
 import CustomEditor from "../../case-studies/components/CustomEditor";
 import { slugify } from "../../utilis/slugify";
-import { emptyBlogSeo } from "../services/blogService";
+import { emptyBlogSeo, emptyBlogSocialShare } from "../services/blogService";
 import CategoryMultiSelect from "./CategoryMultiSelect";
+import BlogSocialTab from "./BlogSocialTab";
+import "../blog-admin.css";
 
 const SITE_HOST = "www.tech2globe.com";
 const INLINE_IMAGE_UPLOAD_URL = "/api/blog/admin/upload-featured";
@@ -75,6 +77,15 @@ export default function BlogForm({
     setForm((prev) => ({
       ...prev,
       seo: { ...(prev.seo || emptyBlogSeo), [field]: value },
+    }));
+
+  const handleSocialShareChange = (platform, cfg) =>
+    setForm((prev) => ({
+      ...prev,
+      social_share: {
+        ...(prev.social_share || emptyBlogSocialShare),
+        [platform]: cfg,
+      },
     }));
 
   const handleCategoriesChange = (ids) => handleChange("categories", ids);
@@ -189,10 +200,15 @@ export default function BlogForm({
           gap: 16px;
         }
         .bf-panel {
-          background: #f8fafc;
-          border: 1px solid #e8ecf1;
-          border-radius: 10px;
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
           padding: 16px;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+        }
+        .bf-panel-publish {
+          border-color: #a7f3d0;
+          background: linear-gradient(180deg, #fff 0%, #f0fdf4 100%);
         }
         .bf-panel-title {
           margin: 0 0 12px;
@@ -224,24 +240,68 @@ export default function BlogForm({
           word-break: break-all;
         }
         .bf-tabs {
-          display: flex;
-          gap: 4px;
+          display: inline-flex;
+          gap: 6px;
           margin-bottom: 20px;
-          border-bottom: 1px solid #e8eaed;
+          padding: 4px;
+          background: #f1f5f9;
+          border-radius: 12px;
           flex-wrap: wrap;
         }
         .bf-tab {
-          padding: 10px 16px;
+          padding: 10px 18px;
           border: none;
-          background: none;
+          background: transparent;
           cursor: pointer;
           font-size: 13px;
           font-weight: 700;
           color: #64748b;
-          border-bottom: 2px solid transparent;
-          margin-bottom: -1px;
+          border-radius: 9px;
+          transition: background 0.15s, color 0.15s;
         }
-        .bf-tab.active { color: #141e46; border-bottom-color: #16a37f; }
+        .bf-tab:hover { color: #0f172a; }
+        .bf-tab.active {
+          color: #0f766e;
+          background: #fff;
+          box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+        }
+        .bf-slug-edit {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+        }
+        .bf-slug-prefix {
+          font-size: 13px;
+          color: #94a3b8;
+          font-weight: 600;
+        }
+        .bf-slug-input {
+          flex: 1;
+          min-width: 140px;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 8px 12px;
+          font-size: 13px;
+          color: #0f172a;
+          background: #f8fafc;
+        }
+        .bf-slug-input:focus {
+          outline: none;
+          border-color: #16a37f;
+          background: #fff;
+        }
+        .bf-status-dot {
+          display: inline-block;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          margin-right: 6px;
+        }
+        .bf-status-dot-publish { background: #16a37f; }
+        .bf-status-dot-draft { background: #f59e0b; }
+        .bf-status-dot-pending { background: #6366f1; }
         .bf-score {
           display: inline-block;
           font-size: 11px;
@@ -419,13 +479,21 @@ export default function BlogForm({
                 }));
               }}
             />
-            <div className="bf-slug-line">
-              Permalink: /blogs/{form.slug || "…"}
+            <div className="bf-slug-edit">
+              <span className="bf-slug-prefix">/blogs/</span>
+              <input
+                className="bf-slug-input"
+                placeholder="post-url-slug"
+                value={form.slug || ""}
+                onChange={(e) => handleChange("slug", slugify(e.target.value))}
+                aria-label="URL slug"
+              />
             </div>
 
-            <div className="bf-tabs">
+            <div className="bf-tabs" role="tablist">
               <button
                 type="button"
+                role="tab"
                 className={`bf-tab${tab === "content" ? " active" : ""}`}
                 onClick={() => setTab("content")}
               >
@@ -433,6 +501,7 @@ export default function BlogForm({
               </button>
               <button
                 type="button"
+                role="tab"
                 className={`bf-tab${tab === "seo" ? " active" : ""}`}
                 onClick={() => setTab("seo")}
               >
@@ -440,6 +509,7 @@ export default function BlogForm({
               </button>
               <button
                 type="button"
+                role="tab"
                 className={`bf-tab${tab === "social" ? " active" : ""}`}
                 onClick={() => setTab("social")}
               >
@@ -449,10 +519,6 @@ export default function BlogForm({
 
             {tab === "content" && (
               <>
-                <div className="bf-group" style={{ marginBottom: 16 }}>
-                  <label className="bf-label">Categories</label>
-                  {categoryPicker}
-                </div>
                 <div className="bf-editor-wrap">
                   <CustomEditor
                     value={form.content || ""}
@@ -545,78 +611,20 @@ export default function BlogForm({
             )}
 
             {tab === "social" && (
-              <div className="bf-grid">
-                <div className="bf-group bf-full">
-                  <p className="bf-hint" style={{ margin: 0 }}>
-                    Leave social fields blank to use SEO title, description, and featured image.
-                  </p>
-                </div>
-
-                <div className="bf-group bf-full">
-                  <label className="bf-label">Open Graph title</label>
-                  <input
-                    className="bf-input"
-                    value={seo.og_title || ""}
-                    onChange={(e) => handleSeoChange("og_title", e.target.value)}
-                  />
-                </div>
-
-                <div className="bf-group bf-full">
-                  <label className="bf-label">Open Graph description</label>
-                  <textarea
-                    className="bf-textarea"
-                    value={seo.og_description || ""}
-                    onChange={(e) => handleSeoChange("og_description", e.target.value)}
-                  />
-                </div>
-
-                <div className="bf-group bf-full">
-                  <label className="bf-label">Open Graph image URL</label>
-                  <input
-                    className="bf-input"
-                    placeholder="Leave blank to use featured image"
-                    value={seo.og_image || ""}
-                    onChange={(e) => handleSeoChange("og_image", e.target.value)}
-                  />
-                  {previewImage && (
-                    <img src={previewImage} alt="Social preview" className="bf-preview" />
-                  )}
-                </div>
-
-                <div className="bf-group bf-full">
-                  <label className="bf-label">Twitter / X title</label>
-                  <input
-                    className="bf-input"
-                    value={seo.twitter_title || ""}
-                    onChange={(e) => handleSeoChange("twitter_title", e.target.value)}
-                  />
-                </div>
-
-                <div className="bf-group bf-full">
-                  <label className="bf-label">Twitter / X description</label>
-                  <textarea
-                    className="bf-textarea"
-                    value={seo.twitter_description || ""}
-                    onChange={(e) => handleSeoChange("twitter_description", e.target.value)}
-                  />
-                </div>
-
-                <div className="bf-group bf-full">
-                  <label className="bf-label">Twitter / X image URL</label>
-                  <input
-                    className="bf-input"
-                    placeholder="Leave blank to use OG image"
-                    value={seo.twitter_image || ""}
-                    onChange={(e) => handleSeoChange("twitter_image", e.target.value)}
-                  />
-                </div>
-              </div>
+              <BlogSocialTab
+                form={form}
+                seo={seo}
+                handleSeoChange={handleSeoChange}
+                previewImage={previewImage}
+                editingId={editingId}
+                onSocialShareChange={handleSocialShareChange}
+              />
             )}
           </div>
 
           <aside className="bf-sidebar">
             <div className="bf-sidebar-sticky">
-              <div className="bf-panel">
+              <div className="bf-panel bf-panel-publish">
                 <h3 className="bf-panel-title">Publish</h3>
                 <div className="bf-group">
                   <label className="bf-label">Status</label>
@@ -625,10 +633,18 @@ export default function BlogForm({
                     value={form.status || "publish"}
                     onChange={(e) => handleChange("status", e.target.value)}
                   >
-                    <option value="publish">Published</option>
-                    <option value="draft">Draft</option>
-                    <option value="pending">Pending Review</option>
+                    <option value="publish">● Published</option>
+                    <option value="draft">● Draft</option>
+                    <option value="pending">● Pending review</option>
                   </select>
+                  <p className="bf-hint" style={{ margin: "6px 0 0" }}>
+                    <span className={`bf-status-dot bf-status-dot-${form.status || "publish"}`} />
+                    {form.status === "draft"
+                      ? "Not visible on the live site"
+                      : form.status === "pending"
+                        ? "Waiting for review"
+                        : "Live on tech2globe.com"}
+                  </p>
                 </div>
                 <div className="bf-publish-actions">
                   <button type="submit" className="bf-btn bf-btn-primary" disabled={submitting}>

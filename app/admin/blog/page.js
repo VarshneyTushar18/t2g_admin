@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
@@ -15,6 +15,7 @@ import {
   deleteCategory,
   exportBlogSeoCsv,
 } from "./services/blogService";
+import "./blog-admin.css";
 
 function pageNumbers(current, total) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -96,13 +97,15 @@ export default function BlogPage() {
     }
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-  };
-
   const { total = 0, totalPages = 1 } = pagination;
   const from = total === 0 ? 0 : (page - 1) * limit + 1;
   const to = Math.min(page * limit, total);
+
+  const pageStats = useMemo(() => {
+    const published = items.filter((i) => i.status === "publish").length;
+    const drafts = items.filter((i) => i.status === "draft").length;
+    return { published, drafts };
+  }, [items]);
 
   const handleCreateCategory = async () => {
     if (!newCategory.trim()) return;
@@ -110,6 +113,7 @@ export default function BlogPage() {
       await createCategory(newCategory);
       setNewCategory("");
       await loadCategories();
+      setSuccess("Category added.");
     } catch (err) {
       alert(err.message || "Failed to create category");
     }
@@ -139,8 +143,8 @@ export default function BlogPage() {
 
   if (authLoading || !canView("blog")) {
     return (
-      <div className="bp" style={{ padding: 24 }}>
-        Loading…
+      <div className="blog-admin-page">
+        <div className="blog-loading">Loading…</div>
       </div>
     );
   }
@@ -148,126 +152,105 @@ export default function BlogPage() {
   const readOnly = isReadOnly("blog");
 
   return (
-    <>
-      <style>{`
-        .bp { min-height: 100vh; background: #f0f2f5; padding: 20px; }
-        .bp-header {
-          display: flex; justify-content: space-between; align-items: center;
-          gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
-        }
-        .bp-title { font-size: 26px; font-weight: 800; margin: 0; }
-        .bp-subtitle { color: #666; font-size: 13px; margin-top: 4px; }
-        .bp-card {
-          background: white; border-radius: 12px;
-          box-shadow: 0 2px 16px rgba(0,0,0,.08); overflow: hidden;
-        }
-        .bp-card-head {
-          padding: 16px; border-bottom: 1px solid #eee; font-weight: 700;
-        }
-        .bp-body { padding: 16px; }
-        .bp-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-        .bp-search {
-          flex: 1; min-width: 220px; padding: 8px 12px; border: 1px solid #ccc;
-          border-radius: 6px;
-        }
-        .btn-add {
-          display: inline-flex; align-items: center;
-          background: #16a37f; color: white; padding: 8px 16px;
-          border-radius: 6px; border: none; cursor: pointer; font-weight: 700;
-          text-decoration: none;
-        }
-        .btn-search {
-          background: #4f8ef7; color: white; padding: 8px 16px;
-          border-radius: 6px; border: none; cursor: pointer;
-        }
-        .btn-export {
-          background: #fff; color: #141e46; padding: 8px 16px;
-          border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;
-          font-weight: 600;
-        }
-        .btn-export:disabled { opacity: 0.6; cursor: not-allowed; }
-        .bp-filter-select {
-          min-width: 180px;
-          padding: 8px 12px;
-          border: 1px solid #ccc;
-          border-radius: 6px;
-          font-size: 13px;
-          background: #fff;
-        }
-        .bp-cat-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-        @media (max-width: 720px) {
-          .bp-cat-row { grid-template-columns: 1fr; }
-        }
-        .cat-chip {
-          background: #eef2f7; padding: 6px 10px; border-radius: 20px;
-          display: flex; align-items: center; gap: 6px; font-size: 13px;
-        }
-        .bp-footer {
-          display: flex; flex-wrap: wrap; align-items: center;
-          justify-content: space-between; gap: 12px;
-          margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee;
-        }
-        .bp-footer-meta { font-size: 13px; color: #64748b; }
-        .bp-pagination { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-        .bp-page-btn {
-          min-width: 36px; height: 36px; padding: 0 10px;
-          border: 1px solid #ddd; border-radius: 6px; background: #fff;
-          cursor: pointer; font-size: 13px;
-        }
-        .bp-page-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-        .bp-page-btn.active { background: #141e46; color: #fff; border-color: #141e46; }
-        .bp-per-page { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-        .bp-per-page select { padding: 6px 8px; border-radius: 6px; border: 1px solid #ccc; }
-        .bp-alert-success {
-          background: #d1fae5; color: #065f46; padding: 12px 16px;
-          border-radius: 8px; margin-bottom: 16px; font-size: 14px;
-        }
-        .bp-back { color: #4f46e5; text-decoration: none; font-size: 14px; font-weight: 600; }
-        .bp-back:hover { text-decoration: underline; }
-      `}</style>
+    <div className="blog-admin-page">
+      <div className="blog-admin-inner">
+        <Link href="/admin" className="blog-admin-back">
+          ← All modules
+        </Link>
 
-      <div className="bp">
-        <p style={{ marginBottom: 12 }}>
-          <Link href="/admin" className="bp-back">
-            ← All modules
-          </Link>
-        </p>
-
-        <div className="bp-header">
-          <div>
-            <h1 className="bp-title">Blog Posts</h1>
-            <p className="bp-subtitle">
-              Manage posts, categories, and SEO for the live blog.
-            </p>
+        <section className="blog-admin-hero">
+          <div className="blog-admin-hero-row">
+            <div>
+              <h1>Blog</h1>
+              <p>
+                Manage posts, categories, and SEO for the live Tech2Globe blog.
+              </p>
+              <div className="blog-admin-stats">
+                <div className="blog-admin-stat">
+                  <strong>{total.toLocaleString()}</strong>
+                  <span>Total posts</span>
+                </div>
+                <div className="blog-admin-stat">
+                  <strong>{categories.length}</strong>
+                  <span>Categories</span>
+                </div>
+                {items.length > 0 && (
+                  <>
+                    <div className="blog-admin-stat">
+                      <strong>{pageStats.published}</strong>
+                      <span>Published (page)</span>
+                    </div>
+                    <div className="blog-admin-stat">
+                      <strong>{pageStats.drafts}</strong>
+                      <span>Drafts (page)</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="blog-admin-actions">
+              {canAdd("blog") && !readOnly && (
+                <Link href="/admin/blog/create" className="blog-btn blog-btn-primary">
+                  + New post
+                </Link>
+              )}
+            </div>
           </div>
-          {canAdd("blog") && !readOnly && (
-            <Link href="/admin/blog/create" className="btn-add">
-              + Add Blog Post
-            </Link>
-          )}
+        </section>
+
+        <div className="blog-quick-links">
+          <Link href="/admin/blog/agent" className="blog-quick-card">
+            <div className="blog-quick-icon agent">✨</div>
+            <div>
+              <strong>Blog Agent</strong>
+              <span>AI writing assistant</span>
+            </div>
+          </Link>
+          <Link href="/admin/blog/agent-automations" className="blog-quick-card">
+            <div className="blog-quick-icon auto">⏱️</div>
+            <div>
+              <strong>Automations</strong>
+              <span>Scheduled AI posts</span>
+            </div>
+          </Link>
+          <Link href="/admin/blog/image-agent" className="blog-quick-card">
+            <div className="blog-quick-icon image">🖼️</div>
+            <div>
+              <strong>Image Agent</strong>
+              <span>AI featured images</span>
+            </div>
+          </Link>
         </div>
 
         {readOnly && <ReadOnlyBanner moduleKey="blog" />}
-        {success && <div className="bp-alert-success">{success}</div>}
+        {success && <div className="blog-alert-success">{success}</div>}
 
-        <div className="bp-card">
-          <div className="bp-card-head">All Blog Posts</div>
+        <div className="blog-card">
+          <div className="blog-card-head">
+            <span>All posts</span>
+            {total > 0 && (
+              <span style={{ fontWeight: 500, color: "#94a3b8", fontSize: 13 }}>
+                {total} total
+              </span>
+            )}
+          </div>
 
-          <div className="bp-body">
-            <form className="bp-toolbar" onSubmit={handleSearch}>
-              <input
-                className="bp-search"
-                placeholder="Search posts..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+          <div className="blog-card-body">
+            <form
+              className="blog-toolbar"
+              onSubmit={(e) => e.preventDefault()}
+            >
+              <div className="blog-search-wrap">
+                <span className="blog-search-icon">🔍</span>
+                <input
+                  className="blog-input"
+                  placeholder="Search by title or slug…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
               <select
-                className="bp-filter-select"
+                className="blog-select blog-filter-select"
                 value={categoryFilter}
                 onChange={(e) => filterByCategory(e.target.value)}
                 aria-label="Filter by category"
@@ -279,12 +262,9 @@ export default function BlogPage() {
                   </option>
                 ))}
               </select>
-              <button type="submit" className="btn-search">
-                Search
-              </button>
               <button
                 type="button"
-                className="btn-export"
+                className="blog-btn blog-btn-secondary"
                 onClick={handleExportSeo}
                 disabled={exporting || loading}
               >
@@ -292,39 +272,46 @@ export default function BlogPage() {
               </button>
             </form>
 
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-                <input
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  placeholder="Add new category"
-                  style={{
-                    padding: "8px",
-                    border: "1px solid #ccc",
-                    borderRadius: "6px",
-                    flex: 1,
-                  }}
+            <details className="blog-categories-panel">
+              <summary>
+                Manage categories
+                <span style={{ color: "#94a3b8", fontWeight: 500 }}>
+                  {categories.length} total
+                </span>
+              </summary>
+              <div className="blog-categories-inner">
+                <div className="blog-cat-add-row">
+                  <input
+                    className="blog-input"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="New category name"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleCreateCategory();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="blog-btn blog-btn-accent"
+                    onClick={handleCreateCategory}
+                    disabled={readOnly || !canEdit("blog") || !newCategory.trim()}
+                  >
+                    Add category
+                  </button>
+                </div>
+                <CategoryManageDropdown
+                  categories={categories}
+                  canDelete={canDelete("blog") && !readOnly}
+                  onDelete={handleDeleteCategory}
                 />
-                <button
-                  type="button"
-                  className="btn-search"
-                  onClick={handleCreateCategory}
-                  disabled={readOnly || !canEdit("blog")}
-                >
-                  Add Category
-                </button>
               </div>
-              <CategoryManageDropdown
-                categories={categories}
-                canDelete={canDelete("blog") && !readOnly}
-                onDelete={handleDeleteCategory}
-              />
-            </div>
+            </details>
 
-            {loading && <div>Loading...</div>}
-            {error && (
-              <div style={{ color: "red", marginBottom: 12 }}>{error}</div>
-            )}
+            {loading && <div className="blog-loading">Loading posts…</div>}
+            {error && <div className="blog-alert-error">{error}</div>}
 
             {!loading && !error && (
               <>
@@ -337,15 +324,16 @@ export default function BlogPage() {
                 />
 
                 {total > 0 && (
-                  <footer className="bp-footer">
-                    <div className="bp-footer-meta">
-                      Showing <strong>{from}</strong> to <strong>{to}</strong> of{" "}
-                      <strong>{total}</strong> posts
+                  <footer className="blog-footer">
+                    <div className="blog-footer-meta">
+                      Showing <strong>{from}</strong>–<strong>{to}</strong> of{" "}
+                      <strong>{total}</strong>
                     </div>
 
-                    <div className="bp-per-page">
+                    <div className="blog-per-page">
                       <span>Per page</span>
                       <select
+                        className="blog-select"
                         value={limit}
                         onChange={(e) => changeLimit(Number(e.target.value))}
                         aria-label="Posts per page"
@@ -358,14 +346,14 @@ export default function BlogPage() {
                       </select>
                     </div>
 
-                    <nav className="bp-pagination" aria-label="Blog list pagination">
+                    <nav className="blog-pagination" aria-label="Blog list pagination">
                       <button
                         type="button"
-                        className="bp-page-btn"
+                        className="blog-page-btn"
                         disabled={page <= 1}
                         onClick={() => goToPage(page - 1)}
                       >
-                        Prev
+                        ←
                       </button>
                       {pageNumbers(page, totalPages).map((p, i, arr) => (
                         <span key={p} style={{ display: "contents" }}>
@@ -374,7 +362,7 @@ export default function BlogPage() {
                           )}
                           <button
                             type="button"
-                            className={`bp-page-btn${p === page ? " active" : ""}`}
+                            className={`blog-page-btn${p === page ? " active" : ""}`}
                             onClick={() => goToPage(p)}
                           >
                             {p}
@@ -383,11 +371,11 @@ export default function BlogPage() {
                       ))}
                       <button
                         type="button"
-                        className="bp-page-btn"
+                        className="blog-page-btn"
                         disabled={page >= totalPages}
                         onClick={() => goToPage(page + 1)}
                       >
-                        Next
+                        →
                       </button>
                     </nav>
                   </footer>
@@ -397,6 +385,6 @@ export default function BlogPage() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
