@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-
   experimental: {
     // Life gallery uploads: many images in one request (default proxy buffer is 10MB).
     proxyClientMaxBodySize: "500mb",
