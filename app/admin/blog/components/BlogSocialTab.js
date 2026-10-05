@@ -1,10 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import "../blog-admin.css";
 import {
-  connectSocialAccount,
-  disconnectSocialAccount,
   getPostSocial,
   getSocialPlatforms,
   retryPostSocialShare,
@@ -74,37 +73,6 @@ export default function BlogSocialTab({
     onSocialShareChange(subTab, { ...platformCfg, ...patch });
   };
 
-  const handleConnect = async () => {
-    if (!platformMeta) return;
-    const label = window.prompt(
-      `Label for ${platformMeta.label} (e.g. @Tech2Globe or Page name):`,
-      platformMeta.account_label || "",
-    );
-    if (label === null) return;
-    setActionBusy(`connect-${subTab}`);
-    try {
-      await connectSocialAccount(subTab, { account_label: label.trim() });
-      await refreshSocial();
-    } catch (err) {
-      alert(err.message || "Failed to connect account");
-    } finally {
-      setActionBusy("");
-    }
-  };
-
-  const handleDisconnect = async () => {
-    if (!window.confirm(`Disconnect ${platformMeta?.label || subTab}?`)) return;
-    setActionBusy(`disconnect-${subTab}`);
-    try {
-      await disconnectSocialAccount(subTab);
-      await refreshSocial();
-    } catch (err) {
-      alert(err.message || "Failed to disconnect");
-    } finally {
-      setActionBusy("");
-    }
-  };
-
   const handleRetry = async () => {
     if (!editingId) return;
     setActionBusy(`retry-${subTab}`);
@@ -168,8 +136,12 @@ export default function BlogSocialTab({
       `}</style>
 
       <p className="bf-hint" style={{ margin: 0 }}>
-        <strong>Link preview</strong> sets OG/Twitter meta tags for when someone shares your blog URL.
-        Platform tabs let you post to social when the post is <strong>published</strong> (API keys required on server).
+        <strong>Link preview</strong> sets OG/Twitter meta tags. Platform tabs choose what to share when this
+        post is <strong>published</strong>. Connect accounts in{" "}
+        <Link href="/admin/blog/social" style={{ color: "#0d9488", fontWeight: 700 }}>
+          Blog → Social media
+        </Link>
+        .
       </p>
 
       <div className="bst-subtabs">
@@ -268,31 +240,18 @@ export default function BlogSocialTab({
                 {editingId && <ShareStatusBadge share={platformShare} />}
               </div>
 
-              {platformMeta?.notes && (
-                <p className="bf-hint" style={{ margin: "0 0 12px" }}>{platformMeta.notes}</p>
+              {!platformMeta?.connected && (
+                <p className="bst-error" style={{ margin: "0 0 12px" }}>
+                  Not connected —{" "}
+                  <Link href="/admin/blog/social" style={{ color: "#0d9488", fontWeight: 700 }}>
+                    connect in Social media settings
+                  </Link>
+                  .
+                </p>
               )}
 
-              <div className="bst-actions">
-                {platformMeta?.connected ? (
-                  <button
-                    type="button"
-                    className="bst-btn"
-                    disabled={Boolean(actionBusy)}
-                    onClick={handleDisconnect}
-                  >
-                    {actionBusy === `disconnect-${subTab}` ? "Disconnecting…" : "Disconnect"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="bst-btn bst-btn-primary"
-                    disabled={Boolean(actionBusy)}
-                    onClick={handleConnect}
-                  >
-                    {actionBusy === `connect-${subTab}` ? "Connecting…" : "Mark as connected"}
-                  </button>
-                )}
-                {editingId && form.status === "publish" && platformCfg.enabled && (
+              {editingId && form.status === "publish" && platformCfg.enabled && (
+                <div className="bst-actions">
                   <button
                     type="button"
                     className="bst-btn"
@@ -301,8 +260,8 @@ export default function BlogSocialTab({
                   >
                     {actionBusy === `retry-${subTab}` ? "Retrying…" : "Retry share"}
                   </button>
-                )}
-              </div>
+                </div>
+              )}
 
               {platformShare?.error_message && (
                 <p className="bst-error" style={{ marginTop: 12 }}>
