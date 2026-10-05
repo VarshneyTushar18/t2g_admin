@@ -213,13 +213,6 @@ export default function BlogPage() {
               <span>Scheduled AI posts</span>
             </div>
           </Link>
-          <Link href="/admin/blog/social" className="blog-quick-card">
-            <div className="blog-quick-icon social">📣</div>
-            <div>
-              <strong>Social media</strong>
-              <span>Connect X, Facebook, LinkedIn, Instagram</span>
-            </div>
-          </Link>
           <Link href="/admin/blog/image-agent" className="blog-quick-card">
             <div className="blog-quick-icon image">🖼️</div>
             <div>

@@ -1,4 +1,4 @@
-import { emptyBlogSeo, emptyBlogSocialShare } from "../services/blogService";
+import { emptyBlogSeo } from "../services/blogService";
 
 export const emptyBlogForm = {
   title: "",
@@ -14,12 +14,6 @@ export const emptyBlogForm = {
   categories: [],
   tags: [],
   seo: { ...emptyBlogSeo },
-  social_share: Object.fromEntries(
-    Object.keys(emptyBlogSocialShare).map((platform) => [
-      platform,
-      { ...emptyBlogSocialShare[platform] },
-    ]),
-  ),
 };
 
 export function defaultAuthorName(user) {
@@ -41,15 +35,6 @@ export function postToForm(item) {
     categories: item.categories || [],
     tags: Array.isArray(item.tags) ? item.tags : [],
     seo: { ...emptyBlogSeo, ...(item.seo || {}) },
-    social_share: Object.fromEntries(
-      Object.keys(emptyBlogSocialShare).map((platform) => [
-        platform,
-        {
-          ...emptyBlogSocialShare[platform],
-          ...(item.social_share?.[platform] || {}),
-        },
-      ]),
-    ),
   };
 }
 

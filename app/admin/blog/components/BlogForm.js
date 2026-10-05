@@ -2,9 +2,8 @@
 import { useRef, useState } from "react";
 import CustomEditor from "../../case-studies/components/CustomEditor";
 import { slugify } from "../../utilis/slugify";
-import { emptyBlogSeo, emptyBlogSocialShare } from "../services/blogService";
+import { emptyBlogSeo } from "../services/blogService";
 import CategoryMultiSelect from "./CategoryMultiSelect";
-import BlogSocialTab from "./BlogSocialTab";
 import "../blog-admin.css";
 
 const SITE_HOST = "www.tech2globe.com";
@@ -77,15 +76,6 @@ export default function BlogForm({
     setForm((prev) => ({
       ...prev,
       seo: { ...(prev.seo || emptyBlogSeo), [field]: value },
-    }));
-
-  const handleSocialShareChange = (platform, cfg) =>
-    setForm((prev) => ({
-      ...prev,
-      social_share: {
-        ...(prev.social_share || emptyBlogSocialShare),
-        [platform]: cfg,
-      },
     }));
 
   const handleCategoriesChange = (ids) => handleChange("categories", ids);
@@ -507,14 +497,6 @@ export default function BlogForm({
               >
                 SEO
               </button>
-              <button
-                type="button"
-                role="tab"
-                className={`bf-tab${tab === "social" ? " active" : ""}`}
-                onClick={() => setTab("social")}
-              >
-                Social
-              </button>
             </div>
 
             {tab === "content" && (
@@ -607,18 +589,73 @@ export default function BlogForm({
                     <span>Nofollow links on this page</span>
                   </label>
                 </div>
-              </div>
-            )}
 
-            {tab === "social" && (
-              <BlogSocialTab
-                form={form}
-                seo={seo}
-                handleSeoChange={handleSeoChange}
-                previewImage={previewImage}
-                editingId={editingId}
-                onSocialShareChange={handleSocialShareChange}
-              />
+                <div className="bf-group bf-full">
+                  <label className="bf-label">Link preview (Open Graph)</label>
+                  <p className="bf-hint" style={{ margin: "0 0 8px" }}>
+                    Leave blank to use SEO title, description, and featured image.
+                  </p>
+                </div>
+
+                <div className="bf-group bf-full">
+                  <label className="bf-label">OG title</label>
+                  <input
+                    className="bf-input"
+                    value={seo.og_title || ""}
+                    onChange={(e) => handleSeoChange("og_title", e.target.value)}
+                  />
+                </div>
+
+                <div className="bf-group bf-full">
+                  <label className="bf-label">OG description</label>
+                  <textarea
+                    className="bf-textarea"
+                    value={seo.og_description || ""}
+                    onChange={(e) => handleSeoChange("og_description", e.target.value)}
+                  />
+                </div>
+
+                <div className="bf-group bf-full">
+                  <label className="bf-label">OG image URL</label>
+                  <input
+                    className="bf-input"
+                    placeholder="Leave blank to use featured image"
+                    value={seo.og_image || ""}
+                    onChange={(e) => handleSeoChange("og_image", e.target.value)}
+                  />
+                  {previewImage && (
+                    <img src={previewImage} alt="OG preview" className="bf-preview" />
+                  )}
+                </div>
+
+                <div className="bf-group bf-full">
+                  <label className="bf-label">Twitter / X title</label>
+                  <input
+                    className="bf-input"
+                    value={seo.twitter_title || ""}
+                    onChange={(e) => handleSeoChange("twitter_title", e.target.value)}
+                  />
+                </div>
+
+                <div className="bf-group bf-full">
+                  <label className="bf-label">Twitter / X description</label>
+                  <textarea
+                    className="bf-textarea"
+                    value={seo.twitter_description || ""}
+                    onChange={(e) => handleSeoChange("twitter_description", e.target.value)}
+                  />
+                </div>
+
+                <div className="bf-group bf-full">
+                  <label className="bf-label">Twitter / X image URL</label>
+                  <input
+                    className="bf-input"
+                    placeholder="Leave blank to use OG image"
+                    value={seo.twitter_image || ""}
+                    onChange={(e) => handleSeoChange("twitter_image", e.target.value)}
+                  />
+                </div>
+              </div>
             )}
           </div>
 

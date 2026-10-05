@@ -2,13 +2,6 @@ import { api, uploadWithProgress } from "@/lib/api";
 import { compressImageFile } from "../../life/utils/compressImage";
 import { packBlogContent } from "../lib/blogContentCompression";
 
-export const emptyBlogSocialShare = {
-  x: { enabled: false, message: "" },
-  facebook: { enabled: false, message: "" },
-  linkedin: { enabled: false, message: "" },
-  instagram: { enabled: false, message: "" },
-};
-
 export const emptyBlogSeo = {
   meta_title: "",
   meta_description: "",
@@ -42,7 +35,6 @@ const buildJsonPayload = async (form, featured_image) => {
     categories: form.categories || [],
     tags: form.tags || [],
     seo: form.seo || emptyBlogSeo,
-    social_share: form.social_share || emptyBlogSocialShare,
     content_encoding: packed.content_encoding,
     content: packed.content,
   };
@@ -142,28 +134,6 @@ export async function getTags() {
 export async function getEditorSchema() {
   const data = await api.get("/api/blog/editor-schema");
   return data;
-}
-
-export async function getSocialPlatforms() {
-  const data = await api.get("/api/blog/social/platforms");
-  return data.platforms || [];
-}
-
-export async function getPostSocial(postId) {
-  const data = await api.get(`/api/blog/social/posts/${postId}`);
-  return data;
-}
-
-export async function connectSocialAccount(platform, body = {}) {
-  return api.post(`/api/blog/social/accounts/${platform}/connect`, body);
-}
-
-export async function disconnectSocialAccount(platform) {
-  return api.post(`/api/blog/social/accounts/${platform}/disconnect`);
-}
-
-export async function retryPostSocialShare(postId) {
-  return api.post(`/api/blog/social/posts/${postId}/retry`);
 }
 
 export async function exportBlogSeoCsv({ search = "", status = "" } = {}) {
