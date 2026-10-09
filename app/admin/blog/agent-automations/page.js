@@ -75,7 +75,7 @@ const MODES = [
   {
     id: "pending_email",
     title: "Ask me first (recommended)",
-    desc: "AI writes the blog → email with Preview, Yes publish, or No keep draft",
+    desc: "AI writes the blog → email with Preview, Save draft, Publish, AI revision, or Reject",
   },
   {
     id: "draft_only",
