@@ -25,8 +25,23 @@ const DEFAULTS = {
   run_days: [1, 2, 3, 4, 5],
   posts_per_run: 1,
   mode: "pending_email",
-  approval_emails: "",
 };
+
+function normalizeEmails(list) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of list || []) {
+    const email = String(raw || "").trim().toLowerCase();
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    out.push(email);
+  }
+  return out;
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 function toInputDateTime(iso) {
   if (!iso) return "";
@@ -82,6 +97,10 @@ export default function AgentAutomationsPage() {
   const [saving, setSaving] = useState(false);
   const [runningNow, setRunningNow] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
+  const [savingEmails, setSavingEmails] = useState(false);
+  const [approvalEmails, setApprovalEmails] = useState([]);
+  const [savedApprovalEmails, setSavedApprovalEmails] = useState([]);
+  const [newApprovalEmail, setNewApprovalEmail] = useState("");
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [publicApiConfigured, setPublicApiConfigured] = useState(true);
@@ -103,6 +122,13 @@ export default function AgentAutomationsPage() {
     try {
       const [settingsRes, t] = await Promise.all([api.getSettings(), api.listTopics()]);
       const s = settingsRes.settings || settingsRes;
+      const loadedEmails = normalizeEmails(
+        Array.isArray(s.approval_emails) && s.approval_emails.length
+          ? s.approval_emails
+          : user?.email
+            ? [user.email]
+            : [],
+      );
       setSettings({
         enabled: !!s.enabled,
         timezone: s.timezone || "Asia/Kolkata",
@@ -112,11 +138,10 @@ export default function AgentAutomationsPage() {
         run_days: Array.isArray(s.run_days) ? s.run_days : [1, 2, 3, 4, 5],
         posts_per_run: Number(s.posts_per_run || 1),
         mode: s.mode || "pending_email",
-        approval_emails:
-          Array.isArray(s.approval_emails) && s.approval_emails.length
-            ? s.approval_emails.join(", ")
-            : user?.email || "",
       });
+      setApprovalEmails(loadedEmails);
+      setSavedApprovalEmails(loadedEmails);
+      setNewApprovalEmail("");
       setPublicApiConfigured(
         settingsRes.publicApiConfigured !== undefined
           ? Boolean(settingsRes.publicApiConfigured)
@@ -142,35 +167,88 @@ export default function AgentAutomationsPage() {
     return `Runs at ${settings.run_time} · ${days || "no days selected"} · ${settings.timezone}`;
   }, [settings]);
 
+  const emailsDirty = useMemo(() => {
+    const current = normalizeEmails(approvalEmails).sort().join(",");
+    const saved = normalizeEmails(savedApprovalEmails).sort().join(",");
+    return current !== saved;
+  }, [approvalEmails, savedApprovalEmails]);
+
+  const buildSettingsPayload = (emails) => ({
+    ...settings,
+    approval_emails: normalizeEmails(emails),
+  });
+
+  const addApprovalEmail = () => {
+    const email = newApprovalEmail.trim().toLowerCase();
+    if (!email) return;
+    if (!isValidEmail(email)) {
+      setError("Enter a valid email address");
+      return;
+    }
+    if (approvalEmails.some((e) => e.toLowerCase() === email)) {
+      setError("That email is already on the list");
+      return;
+    }
+    setApprovalEmails((prev) => [...prev, email]);
+    setNewApprovalEmail("");
+    setError("");
+  };
+
+  const removeApprovalEmail = (email) => {
+    setApprovalEmails((prev) => prev.filter((e) => e !== email));
+    setError("");
+  };
+
+  const saveApprovalEmails = async () => {
+    const emails = normalizeEmails(approvalEmails);
+    if (!emails.length) {
+      setError("Add at least one email, then click Save emails");
+      return;
+    }
+    setSavingEmails(true);
+    setError("");
+    setSuccess("");
+    try {
+      const next = await api.saveSettings(buildSettingsPayload(emails));
+      const saved = normalizeEmails(next.approval_emails || emails);
+      setApprovalEmails(saved);
+      setSavedApprovalEmails(saved);
+      setSuccess(`Saved approval emails: ${saved.join(", ")}`);
+    } catch (err) {
+      setError(err.message || "Failed to save emails");
+    } finally {
+      setSavingEmails(false);
+    }
+  };
+
   const saveSettings = async () => {
     setSaving(true);
     setError("");
     setSuccess("");
     const needsEmail = settings.mode !== "draft_only";
-    const emails = settings.approval_emails
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const emails = normalizeEmails(approvalEmails);
     if (needsEmail && !emails.length) {
       setError("Add your email so we can send Yes / No / Preview links");
       setSaving(false);
       return;
     }
+    if (needsEmail && emailsDirty) {
+      setError("Click Save emails first — you have unsaved email changes");
+      setSaving(false);
+      return;
+    }
     try {
-      const next = await api.saveSettings({
-        ...settings,
-        approval_emails: emails,
-      });
+      const next = await api.saveSettings(buildSettingsPayload(emails));
+      const saved = normalizeEmails(next.approval_emails || emails);
+      setApprovalEmails(saved);
+      setSavedApprovalEmails(saved);
       setSettings((prev) => ({
         ...prev,
         enabled: !!next.enabled,
-        approval_emails: Array.isArray(next.approval_emails)
-          ? next.approval_emails.join(", ")
-          : prev.approval_emails,
       }));
       setSuccess(
         settings.mode === "pending_email"
-          ? `Saved. When a blog is ready, we’ll email: ${emails.join(", ")}`
+          ? `Saved. When a blog is ready, we’ll email: ${saved.join(", ")}`
           : "Settings saved.",
       );
     } catch (err) {
@@ -184,12 +262,9 @@ export default function AgentAutomationsPage() {
     setTestingEmail(true);
     setError("");
     setSuccess("");
-    const emails = settings.approval_emails
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const emails = normalizeEmails(approvalEmails);
     if (!emails.length) {
-      setError("Enter your email first");
+      setError("Add at least one email first");
       setTestingEmail(false);
       return;
     }
@@ -453,6 +528,69 @@ export default function AgentAutomationsPage() {
           color: #64748b;
           font-weight: 400;
         }
+        .aa-email-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin: 12px 0;
+          min-height: 36px;
+        }
+        .aa-email-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 10px;
+          border-radius: 999px;
+          background: #eef2ff;
+          border: 1px solid #c7d2fe;
+          color: #312e81;
+          font-size: 13px;
+          font-weight: 500;
+        }
+        .aa-email-chip button {
+          border: none;
+          background: transparent;
+          color: #64748b;
+          cursor: pointer;
+          font-size: 16px;
+          line-height: 1;
+          padding: 0;
+        }
+        .aa-email-chip button:hover:not(:disabled) {
+          color: #b91c1c;
+        }
+        .aa-email-chip button:disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+        .aa-email-empty {
+          font-size: 13px;
+          color: #94a3b8;
+          padding: 8px 0;
+        }
+        .aa-email-add-row {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+        .aa-email-add-row .aa-input {
+          flex: 1;
+          min-width: 200px;
+        }
+        .aa-email-status {
+          margin-top: 8px;
+          font-size: 12px;
+          color: #64748b;
+        }
+        .aa-email-status.warn {
+          color: #b45309;
+          font-weight: 600;
+        }
+        .aa-email-status.ok {
+          color: #166534;
+          font-weight: 600;
+        }
         .aa-actions {
           margin-top: 20px;
           display: flex;
@@ -688,53 +826,101 @@ export default function AgentAutomationsPage() {
                       <h3>Send approval email to</h3>
                       <p className="hint">
                         You’ll get <strong>Preview</strong>, <strong>Yes — Publish</strong>, and{" "}
-                        <strong>No — Keep draft</strong> (same idea as Career jobs).
+                        <strong>No — Keep draft</strong> (same idea as Career jobs). Add emails below,
+                        click <strong>Save emails</strong>, and they stay until you remove them.
                       </p>
-                      <label className="aa-field">
-                        Your email
+
+                      <div className="aa-email-chips">
+                        {approvalEmails.length === 0 ? (
+                          <span className="aa-email-empty">No emails saved yet.</span>
+                        ) : (
+                          approvalEmails.map((email) => (
+                            <span key={email} className="aa-email-chip">
+                              {email}
+                              <button
+                                type="button"
+                                title={`Remove ${email}`}
+                                aria-label={`Remove ${email}`}
+                                disabled={!canEditBlog}
+                                onClick={() => removeApprovalEmail(email)}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))
+                        )}
+                      </div>
+
+                      <div className="aa-email-add-row">
                         <input
                           className="aa-input"
-                          type="text"
-                          value={settings.approval_emails}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              approval_emails: e.target.value,
-                            }))
-                          }
+                          type="email"
+                          value={newApprovalEmail}
+                          onChange={(e) => setNewApprovalEmail(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addApprovalEmail();
+                            }
+                          }}
                           disabled={!canEditBlog}
-                          placeholder="you@tech2globe.com"
+                          placeholder="Add email, e.g. you@tech2globe.com"
                         />
-                      </label>
-                      <div className="aa-actions" style={{ marginTop: 12 }}>
                         <button
                           type="button"
                           className="aa-btn secondary"
-                          onClick={testEmail}
-                          disabled={!canEditBlog || testingEmail}
+                          disabled={!canEditBlog || !newApprovalEmail.trim()}
+                          onClick={addApprovalEmail}
                         >
-                          {testingEmail ? "Sending…" : "Send me a test email"}
+                          Add
                         </button>
                         {user?.email &&
-                          !String(settings.approval_emails)
-                            .toLowerCase()
-                            .includes(String(user.email).toLowerCase()) && (
+                          !approvalEmails.some(
+                            (e) => e.toLowerCase() === String(user.email).toLowerCase(),
+                          ) && (
                             <button
                               type="button"
                               className="aa-btn secondary"
                               disabled={!canEditBlog}
-                              onClick={() =>
-                                setSettings((prev) => ({
-                                  ...prev,
-                                  approval_emails: prev.approval_emails
-                                    ? `${prev.approval_emails}, ${user.email}`
-                                    : user.email,
-                                }))
-                              }
+                              onClick={() => {
+                                setApprovalEmails((prev) =>
+                                  normalizeEmails([...prev, user.email]),
+                                );
+                                setError("");
+                              }}
                             >
                               Use my login email
                             </button>
                           )}
+                      </div>
+
+                      <p
+                        className={`aa-email-status${emailsDirty ? " warn" : savedApprovalEmails.length ? " ok" : ""}`}
+                      >
+                        {emailsDirty
+                          ? "Unsaved changes — click Save emails to keep this list."
+                          : savedApprovalEmails.length
+                            ? `Saved: ${savedApprovalEmails.join(", ")}`
+                            : "Add an email and save it."}
+                      </p>
+
+                      <div className="aa-actions" style={{ marginTop: 12 }}>
+                        <button
+                          type="button"
+                          className="aa-btn primary"
+                          onClick={saveApprovalEmails}
+                          disabled={!canEditBlog || savingEmails || !approvalEmails.length}
+                        >
+                          {savingEmails ? "Saving…" : "Save emails"}
+                        </button>
+                        <button
+                          type="button"
+                          className="aa-btn secondary"
+                          onClick={testEmail}
+                          disabled={!canEditBlog || testingEmail || !approvalEmails.length}
+                        >
+                          {testingEmail ? "Sending…" : "Send me a test email"}
+                        </button>
                       </div>
                     </div>
                   )}

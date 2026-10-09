@@ -111,6 +111,7 @@ export default function BlogAgentPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
   const [previewPost, setPreviewPost] = useState(null);
+  const [deletingThreadId, setDeletingThreadId] = useState(null);
 
   const messagesEndRef = useRef(null);
   const startedFreshRef = useRef(false);
@@ -397,7 +398,10 @@ export default function BlogAgentPage() {
   };
 
   const handleDeleteThread = async (threadId) => {
+    if (deletingThreadId) return;
     if (!confirm("Delete this conversation?")) return;
+    setDeletingThreadId(threadId);
+    setError("");
     try {
       await agentApi.deleteThread(threadId);
       setThreads((prev) => prev.filter((t) => t.id !== threadId));
@@ -408,6 +412,8 @@ export default function BlogAgentPage() {
       }
     } catch (err) {
       setError(err.message || "Delete failed");
+    } finally {
+      setDeletingThreadId(null);
     }
   };
 
@@ -465,20 +471,33 @@ export default function BlogAgentPage() {
           overflow-y: auto;
           padding: 8px;
         }
+        .ba-thread-row {
+          display: flex;
+          align-items: stretch;
+          gap: 2px;
+          margin-bottom: 4px;
+          border: 1px solid transparent;
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .ba-thread-row:hover { background: #e2e8f0; }
+        .ba-thread-row.active {
+          border-color: #bfdbfe;
+          background: #dbeafe;
+        }
         .ba-thread {
+          flex: 1;
+          min-width: 0;
           display: block;
-          width: 100%;
           text-align: left;
           padding: 10px 12px;
-          margin-bottom: 4px;
           border: none;
-          border-radius: 8px;
+          border-radius: 0;
           background: transparent;
           cursor: pointer;
           font-size: 13px;
         }
-        .ba-thread:hover { background: #e2e8f0; }
-        .ba-thread.active { background: #dbeafe; color: #1e40af; font-weight: 600; }
+        .ba-thread-row.active .ba-thread { color: #1e40af; font-weight: 600; }
         .ba-thread-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .ba-thread-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
         .ba-tabs {
@@ -758,12 +777,23 @@ export default function BlogAgentPage() {
           cursor: not-allowed;
         }
         .ba-del-thread {
-          float: right;
-          font-size: 11px;
+          flex-shrink: 0;
+          width: 2rem;
+          font-size: 16px;
+          line-height: 1;
           color: #94a3b8;
-          background: none;
+          background: transparent;
           border: none;
           cursor: pointer;
+          align-self: stretch;
+        }
+        .ba-del-thread:hover:not(:disabled) {
+          color: #b91c1c;
+          background: #fef2f2;
+        }
+        .ba-del-thread:disabled {
+          cursor: wait;
+          opacity: 0.6;
         }
         .ba-preview-overlay {
           position: fixed;
@@ -963,11 +993,15 @@ export default function BlogAgentPage() {
               </p>
             )}
             {threads.map((t) => (
-              <div key={t.id} style={{ position: "relative" }}>
+              <div
+                key={t.id}
+                className={`ba-thread-row${activeThreadId === t.id ? " active" : ""}`}
+              >
                 <button
                   type="button"
-                  className={`ba-thread ${activeThreadId === t.id ? "active" : ""}`}
+                  className="ba-thread"
                   onClick={() => openThreadTab(t)}
+                  disabled={deletingThreadId === t.id}
                 >
                   <div className="ba-thread-title">{t.title || "New conversation"}</div>
                   <div className="ba-thread-meta">{formatTime(t.updated_at)}</div>
@@ -975,10 +1009,15 @@ export default function BlogAgentPage() {
                 <button
                   type="button"
                   className="ba-del-thread"
-                  title="Delete"
-                  onClick={() => handleDeleteThread(t.id)}
+                  title="Delete chat"
+                  aria-label={`Delete chat ${t.title || "Untitled"}`}
+                  disabled={deletingThreadId === t.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteThread(t.id);
+                  }}
                 >
-                  ×
+                  {deletingThreadId === t.id ? "…" : "×"}
                 </button>
               </div>
             ))}

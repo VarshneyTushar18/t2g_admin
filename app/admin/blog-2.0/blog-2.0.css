@@ -393,14 +393,20 @@
   font-size: 1.1rem;
   line-height: 1;
   cursor: pointer;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.15s, color 0.15s, background 0.15s;
 }
 
-.b20-thread-row:hover .b20-thread-delete,
-.b20-thread-row.active .b20-thread-delete,
-.b20-thread-delete:focus-visible {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .b20-thread-delete {
+    opacity: 0;
+  }
+
+  .b20-thread-row:hover .b20-thread-delete,
+  .b20-thread-row.active .b20-thread-delete,
+  .b20-thread-delete:focus-visible {
+    opacity: 1;
+  }
 }
 
 .b20-thread-delete:hover:not(:disabled) {
