@@ -227,10 +227,9 @@ export default function CareerAutomationsPage() {
           <section className="ca-card">
             <h2>2 — Cron schedule (automatic)</h2>
             <ol className="ca-flow">
-              <li>
-                <strong>Default:</strong> AI drafts → HR gets full “Should we publish …?” email (JD + Yes/No + live jobs).
-              </li>
-              <li>Optional two-step mode: short check-in first, then full email only if HR says Yes.</li>
+              <li><strong>Email 1:</strong> Publish? Yes / No + remove jobs list (same mail).</li>
+              <li><strong>Email 2 (if Yes):</strong> Form link — HR describes the role and sends.</li>
+              <li><strong>Email 3:</strong> Career Agent drafts → full publish approval (JD + Yes/No publish).</li>
             </ol>
           </section>
         </div>
@@ -384,8 +383,8 @@ export default function CareerAutomationsPage() {
             {testing ? "Sending…" : "Send test publish email (one email)"}
           </button>
           <p className="ca-sub" style={{ marginTop: 10 }}>
-            <strong>Test publish email</strong> always sends the full HR template (like Job Approvals test).
-            <strong> Run AI draft now</strong> uses OpenAI + Career Agent (needs AI keys and blog DB).
+            <strong>Send test automation email</strong> sends Email 1 (Publish Yes/No + live jobs).
+            Click <strong>Yes</strong> in that mail to receive Email 2 with the comment form.
           </p>
         </form>
 
