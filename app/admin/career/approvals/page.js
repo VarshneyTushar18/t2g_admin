@@ -163,7 +163,9 @@ export default function CareerJobApprovalsPage() {
           <p>
             Assistant flow: AI drafts a job → emails HR “Do you want to publish?” →
             <strong> Yes</strong> publishes, <strong>No</strong> rejects,{" "}
-            <strong>no reply</strong> gets reminders then expires.
+            <strong>no reply</strong> gets reminders then expires. Each email also lists{" "}
+            <strong>all live careers-page jobs</strong> (numbered) with a link to remove a
+            job by entering its number.
           </p>
         </div>
 
