@@ -18,6 +18,10 @@ export async function sendTestApprovalEmail(approval_emails) {
   return api.post(`${BASE}/test-email`, { approval_emails });
 }
 
+export async function sendTestScheduleEmail() {
+  return api.post(`${BASE}/test-schedule-email`, {});
+}
+
 export async function resendJobApproval(jobId) {
   return api.post(`${BASE}/${jobId}/resend`, {});
 }

@@ -282,6 +282,18 @@ export default function CareerJobApprovalsPage() {
                 <small>Default 168 = 7 days. After expiry, pending jobs become rejected.</small>
               </div>
 
+              <p className="sub" style={{ marginTop: 16 }}>
+                Cron / recurring “draft a job?” emails are configured in{" "}
+                <Link href="/admin/career/automations" style={{ color: "#1d4ed8", fontWeight: 700 }}>
+                  Career Automations
+                </Link>
+                . Chat-based jobs use{" "}
+                <Link href="/admin/career/agent" style={{ color: "#1d4ed8", fontWeight: 700 }}>
+                  Career Agent
+                </Link>
+                .
+              </p>
+
               <div className="ca-actions">
                 <button
                   type="submit"
@@ -296,7 +308,7 @@ export default function CareerJobApprovalsPage() {
                   disabled={!canEditCareer || testing}
                   onClick={handleTest}
                 >
-                  {testing ? "Sending…" : "Send test email"}
+                  {testing ? "Sending…" : "Send test publish email"}
                 </button>
               </div>
             </form>
@@ -305,9 +317,12 @@ export default function CareerJobApprovalsPage() {
           <section className="ca-card">
             <h2>How the assistant behaves</h2>
             <ol className="ca-flow">
-              <li>Career Agent drafts the job from chat.</li>
-              <li>Job saved as <strong>pending_approval</strong> (not public).</li>
-              <li>HR gets a polished email: job summary + <strong>Yes — Publish</strong> / <strong>No</strong>.</li>
+              <li>
+                <Link href="/admin/career/automations">Career Automations</Link> (cron) or{" "}
+                <Link href="/admin/career/agent">Career Agent</Link> (chat) drafts →{" "}
+                <strong>pending_approval</strong>.
+              </li>
+              <li>HR gets the full email: JD + <strong>Yes — Publish</strong> / <strong>No</strong>.</li>
               <li>
                 <strong>Yes</strong> → status <code>active</code> (live on careers page) + confirmation email.
               </li>
