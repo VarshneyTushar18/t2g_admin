@@ -125,11 +125,16 @@ export default function CareerAutomationsPage() {
     setSuccess("");
     try {
       const r = await api.runNow();
-      setSuccess(
-        r.sent
-          ? `Check-in email sent (${r.recipients?.join(", ") || "HR"}).`
-          : `Skipped: ${r.reason || "unknown"}`,
-      );
+      if (r.error) {
+        setError(r.error);
+      } else {
+        setSuccess(
+          r.sent
+            ? r.message ||
+                `Done (${r.recipients?.join(", ") || "check Job Approvals HR inbox"}).`
+            : `Skipped: ${r.reason || "unknown"}`,
+        );
+      }
     } catch (err) {
       setError(err.message || "Run failed");
     } finally {
@@ -140,11 +145,13 @@ export default function CareerAutomationsPage() {
   const handleTest = async () => {
     if (!canEditCareer) return;
     setTesting(true);
+    setError("");
+    setSuccess("");
     try {
       const r = await api.sendTestScheduleEmail();
       setSuccess(
         r.note ||
-          `Test sent to ${r.recipients?.join(", ") || "HR"} (${r.mode === "publish_email" ? "full publish email" : "check-in email"}).`,
+          `Test sent to ${r.recipients?.join(", ") || "HR"} (${r.mode === "publish_email" ? "full publish email" : "check-in email"}). Check inbox and spam.`,
       );
     } catch (err) {
       setError(err.message || "Test failed");
@@ -371,11 +378,15 @@ export default function CareerAutomationsPage() {
             {saving ? "Saving…" : "Save schedule"}
           </button>
           <button type="button" className="ca-btn" disabled={!canEditCareer || running} onClick={handleRunNow}>
-            {running ? "Running…" : "Run check-in now"}
+            {running ? "Running…" : "Run AI draft now (live cron path)"}
           </button>
           <button type="button" className="ca-btn" disabled={!canEditCareer || testing} onClick={handleTest}>
-            {testing ? "Sending…" : "Send test automation email"}
+            {testing ? "Sending…" : "Send test publish email (one email)"}
           </button>
+          <p className="ca-sub" style={{ marginTop: 10 }}>
+            <strong>Test publish email</strong> always sends the full HR template (like Job Approvals test).
+            <strong> Run AI draft now</strong> uses OpenAI + Career Agent (needs AI keys and blog DB).
+          </p>
         </form>
 
         <section className="ca-card" style={{ marginTop: 16 }}>
