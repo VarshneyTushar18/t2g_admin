@@ -25,8 +25,22 @@ const DEFAULTS = {
   schedule_gate_expiry_hours: 72,
   schedule_agent_prompt: "",
   schedule_run_days: [1],
+  schedule_mode: "publish_email",
   approval_emails: "",
 };
+
+const MODES = [
+  {
+    id: "publish_email",
+    title: "Publish approval email (recommended)",
+    desc: "On schedule: AI drafts the job, then HR gets the full email — job description, Yes — Publish / No, and live jobs list (same as Career Agent).",
+  },
+  {
+    id: "ask_before_draft",
+    title: "Ask before drafting (two-step)",
+    desc: "First a short check-in email; only if HR clicks Yes does AI draft and send the full publish email.",
+  },
+];
 
 export default function CareerAutomationsPage() {
   const { loading: authLoading, canView, canEdit, isReadOnly } = useAuth();
@@ -58,6 +72,7 @@ export default function CareerAutomationsPage() {
         schedule_gate_expiry_hours: Number(s.schedule_gate_expiry_hours) || 72,
         schedule_agent_prompt: s.schedule_agent_prompt || "",
         schedule_run_days: Array.isArray(s.schedule_run_days) ? s.schedule_run_days : [1],
+        schedule_mode: s.schedule_mode === "ask_before_draft" ? "ask_before_draft" : "publish_email",
         approval_emails: Array.isArray(s.approval_emails)
           ? s.approval_emails.join(", ")
           : "",
@@ -127,7 +142,10 @@ export default function CareerAutomationsPage() {
     setTesting(true);
     try {
       const r = await api.sendTestScheduleEmail();
-      setSuccess(`Test check-in sent to ${r.recipients?.join(", ") || "HR"}.`);
+      setSuccess(
+        r.note ||
+          `Test sent to ${r.recipients?.join(", ") || "HR"} (${r.mode === "publish_email" ? "full publish email" : "check-in email"}).`,
+      );
     } catch (err) {
       setError(err.message || "Test failed");
     } finally {
@@ -202,9 +220,10 @@ export default function CareerAutomationsPage() {
           <section className="ca-card">
             <h2>2 — Cron schedule (automatic)</h2>
             <ol className="ca-flow">
-              <li>Email: “Draft a job?” → Yes / No + current live jobs.</li>
-              <li><strong>Yes</strong> → AI drafts → full publish email (same as agent).</li>
-              <li><strong>No</strong> → nothing until next cycle.</li>
+              <li>
+                <strong>Default:</strong> AI drafts → HR gets full “Should we publish …?” email (JD + Yes/No + live jobs).
+              </li>
+              <li>Optional two-step mode: short check-in first, then full email only if HR says Yes.</li>
             </ol>
           </section>
         </div>
@@ -225,8 +244,37 @@ export default function CareerAutomationsPage() {
                 setSettings((p) => ({ ...p, schedule_enabled: e.target.checked }))
               }
             />
-            <span>Enable scheduled check-in emails</span>
+            <span>Enable scheduled career automations (cron)</span>
           </label>
+
+          <div className="ca-field">
+            <label>Automation mode</label>
+            {MODES.map((m) => (
+              <label
+                key={m.id}
+                className="ca-check"
+                style={{
+                  border: settings.schedule_mode === m.id ? "2px solid #1d4ed8" : "1px solid #e2e8f0",
+                  borderRadius: 10,
+                  padding: 10,
+                  marginBottom: 8,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="schedule_mode"
+                  disabled={!canEditCareer}
+                  checked={settings.schedule_mode === m.id}
+                  onChange={() => setSettings((p) => ({ ...p, schedule_mode: m.id }))}
+                />
+                <span>
+                  <strong>{m.title}</strong>
+                  <br />
+                  <span style={{ color: "#64748b", fontSize: 13 }}>{m.desc}</span>
+                </span>
+              </label>
+            ))}
+          </div>
 
           <div className="ca-field">
             <label>Run on days (IST, leave empty = any day)</label>
@@ -326,7 +374,7 @@ export default function CareerAutomationsPage() {
             {running ? "Running…" : "Run check-in now"}
           </button>
           <button type="button" className="ca-btn" disabled={!canEditCareer || testing} onClick={handleTest}>
-            {testing ? "Sending…" : "Send test check-in email"}
+            {testing ? "Sending…" : "Send test automation email"}
           </button>
         </form>
 
