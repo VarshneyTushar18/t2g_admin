@@ -35,6 +35,11 @@ export async function deleteTopic(id) {
   return api.delete(`${BASE}/topics/${id}`);
 }
 
+export async function requeueTopic(id) {
+  const data = await api.post(`${BASE}/topics/${id}/requeue`, {});
+  return data.topic;
+}
+
 export async function runNow() {
   return api.post(`${BASE}/run-now`, {});
 }

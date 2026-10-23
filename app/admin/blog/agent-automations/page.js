@@ -451,6 +451,17 @@ export default function AgentAutomationsPage() {
     }
   };
 
+  const retryTopic = async (id) => {
+    setError("");
+    try {
+      const topic = await api.requeueTopic(id);
+      setTopics((prev) => prev.map((t) => (t.id === id ? topic : t)));
+      setSuccess("Topic back in queue. Click Write 1 now or wait for the schedule.");
+    } catch (err) {
+      setError(err.message || "Retry failed");
+    }
+  };
+
   const runNow = async () => {
     setRunningNow(true);
     setError("");
@@ -1597,6 +1608,15 @@ export default function AgentAutomationsPage() {
                         </td>
                         <td>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {canEditBlog && t.status === "failed" && (
+                              <button
+                                type="button"
+                                className="aa-btn primary"
+                                onClick={() => retryTopic(t.id)}
+                              >
+                                Retry
+                              </button>
+                            )}
                             {canEditBlog && t.status !== "processing" && (
                               <button
                                 type="button"
