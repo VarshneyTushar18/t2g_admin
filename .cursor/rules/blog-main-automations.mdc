@@ -1,0 +1,26 @@
+---
+description: Main Tech2Globe blog module and Agent Automations (not Blog-2.0)
+globs: app/admin/blog/**,**/agents/blog/**,**/agents/automations/**
+alwaysApply: false
+---
+
+# Main blog & Agent Automations
+
+- **Blog-2.0** (`app/admin/blog-2.0`, `blog-2.0` backend) is Bright CRM / MailerLite — do not mix with this module.
+- **Original blog:** `app/admin/blog`, `src/modules/blog`, `src/modules/agents/blog`, `src/modules/agents/automations`.
+
+## Agent memory (automations)
+
+- Stored in blog DB: `blog_agent_guidelines` **id=4**.
+- Admin UI: **Blog → Agent Automations → Agent memory**.
+- When changing automation behavior (slug from title, SEO, categories, image alt, preview), update memory + `blogAgentAutomationMemory.js` default seed.
+
+## Automation topics
+
+- API: `PUT /api/agents/automations/topics/:id` for edits.
+- Topics support `category_ids`; UI must send them on create/update.
+- After a run, show `generated_title` (not only post id).
+
+## Agent tools
+
+- `create_blog_post` / `update_blog_post`: slug from title, SEO fields, featured_image_alt/title, categoryIds.

@@ -43,3 +43,13 @@ export async function runNow() {
 export async function sendTestEmail(approval_emails) {
   return api.post(`${BASE}/test-email`, { approval_emails });
 }
+
+export async function getAgentMemory() {
+  const data = await api.get(`${BASE}/agent-memory`);
+  return data.guidelines || { content: "" };
+}
+
+export async function saveAgentMemory(content) {
+  const data = await api.put(`${BASE}/agent-memory`, { content });
+  return data.guidelines;
+}

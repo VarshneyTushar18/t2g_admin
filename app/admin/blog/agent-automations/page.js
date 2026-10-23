@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
 import ReadOnlyBanner from "../../components/ReadOnlyBanner";
 import * as api from "../services/agentAutomationsService";
+import { getCategories } from "../services/blogService";
 
 const DAYS = [
   { id: 0, label: "Sun" },
@@ -112,7 +113,14 @@ export default function AgentAutomationsPage() {
     tags: "",
     priority: 0,
     scheduled_for: "",
+    category_ids: [],
   });
+  const [categories, setCategories] = useState([]);
+  const [editingTopicId, setEditingTopicId] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [agentMemory, setAgentMemory] = useState("");
+  const [memorySaving, setMemorySaving] = useState(false);
+  const [showMemory, setShowMemory] = useState(false);
 
   const canEditBlog = canEdit("blog") && !isReadOnly("blog");
 
@@ -120,7 +128,14 @@ export default function AgentAutomationsPage() {
     setLoading(true);
     setError("");
     try {
-      const [settingsRes, t] = await Promise.all([api.getSettings(), api.listTopics()]);
+      const [settingsRes, t, cats, memory] = await Promise.all([
+        api.getSettings(),
+        api.listTopics(),
+        getCategories().catch(() => []),
+        api.getAgentMemory().catch(() => ({ content: "" })),
+      ]);
+      setCategories(cats);
+      setAgentMemory(memory.content || "");
       const s = settingsRes.settings || settingsRes;
       const loadedEmails = normalizeEmails(
         Array.isArray(s.approval_emails) && s.approval_emails.length
@@ -297,6 +312,7 @@ export default function AgentAutomationsPage() {
     try {
       const created = await api.createTopic({
         ...topicForm,
+        category_ids: topicForm.category_ids || [],
         tags: topicForm.tags
           .split(",")
           .map((s) => s.trim())
@@ -315,6 +331,79 @@ export default function AgentAutomationsPage() {
     } catch (err) {
       setError(err.message || "Could not add topic");
     }
+  };
+
+  const toggleCategory = (formSetter, id) => {
+    formSetter((p) => {
+      const set = new Set(p.category_ids || []);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      return { ...p, category_ids: [...set] };
+    });
+  };
+
+  const startEditTopic = (t) => {
+    setEditingTopicId(t.id);
+    setEditForm({
+      topic: t.topic || "",
+      notes: t.notes || "",
+      author_name: t.author_name || "Tech2Globe Digital Team",
+      tags: (t.tags || []).join(", "),
+      category_ids: t.category_ids || [],
+      status: t.status === "failed" || t.status === "draft_ready" ? "queued" : t.status,
+    });
+  };
+
+  const cancelEditTopic = () => {
+    setEditingTopicId(null);
+    setEditForm(null);
+  };
+
+  const saveEditTopic = async (e) => {
+    e.preventDefault();
+    if (!editingTopicId || !editForm?.topic?.trim()) return;
+    setError("");
+    try {
+      const updated = await api.updateTopic(editingTopicId, {
+        topic: editForm.topic.trim(),
+        notes: editForm.notes,
+        author_name: editForm.author_name,
+        category_ids: editForm.category_ids || [],
+        tags: editForm.tags
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        status: editForm.status === "draft_ready" ? "queued" : editForm.status || "queued",
+      });
+      setTopics((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      cancelEditTopic();
+      setSuccess("Topic updated. Queued topics run on the next schedule or Run now.");
+    } catch (err) {
+      setError(err.message || "Could not update topic");
+    }
+  };
+
+  const saveAgentMemory = async () => {
+    if (!canEditBlog) return;
+    setMemorySaving(true);
+    setError("");
+    try {
+      const g = await api.saveAgentMemory(agentMemory);
+      setAgentMemory(g.content || agentMemory);
+      setSuccess("Automation agent memory saved. Future scheduled runs will follow these rules.");
+    } catch (err) {
+      setError(err.message || "Could not save agent memory");
+    } finally {
+      setMemorySaving(false);
+    }
+  };
+
+  const categoryLabel = (ids = []) => {
+    if (!ids?.length) return "";
+    const names = ids
+      .map((id) => categories.find((c) => c.id === id)?.name)
+      .filter(Boolean);
+    return names.join(", ");
   };
 
   const removeTopic = async (id) => {
@@ -1044,8 +1133,49 @@ export default function AgentAutomationsPage() {
             <section className="aa-card">
               <div className="aa-card-head">
                 <div>
+                  <h2>Agent memory (automations)</h2>
+                  <p>
+                    Rules injected into every scheduled blog run so the agent keeps slug, SEO,
+                    categories, and titles consistent.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="aa-btn secondary"
+                  onClick={() => setShowMemory((v) => !v)}
+                >
+                  {showMemory ? "Hide" : "Show / edit"}
+                </button>
+              </div>
+              {showMemory && (
+                <div style={{ marginBottom: 16 }}>
+                  <textarea
+                    className="aa-textarea"
+                    rows={12}
+                    value={agentMemory}
+                    disabled={!canEditBlog}
+                    onChange={(e) => setAgentMemory(e.target.value)}
+                    placeholder="Automation rules for the Blog Agent…"
+                  />
+                  <div className="aa-actions" style={{ marginTop: 10 }}>
+                    <button
+                      type="button"
+                      className="aa-btn primary"
+                      disabled={!canEditBlog || memorySaving}
+                      onClick={saveAgentMemory}
+                    >
+                      {memorySaving ? "Saving…" : "Save agent memory"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="aa-card">
+              <div className="aa-card-head">
+                <div>
                   <h2>Topics to write</h2>
-                  <p>Type a topic and add it. AI picks from this list.</p>
+                  <p>Type a topic, pick categories, then add. AI uses the queue in order.</p>
                 </div>
                 <span className="aa-badge info">{topics.length}</span>
               </div>
@@ -1102,6 +1232,42 @@ export default function AgentAutomationsPage() {
                     disabled={!canEditBlog}
                   />
                 </label>
+                {categories.length > 0 && (
+                  <div className="aa-field full">
+                    <span style={{ fontWeight: 700, fontSize: 13 }}>Categories</span>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        marginTop: 8,
+                        maxHeight: 120,
+                        overflowY: "auto",
+                      }}
+                    >
+                      {categories.map((c) => (
+                        <label
+                          key={c.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontSize: 13,
+                            cursor: canEditBlog ? "pointer" : "default",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={!canEditBlog}
+                            checked={(topicForm.category_ids || []).includes(c.id)}
+                            onChange={() => toggleCategory(setTopicForm, c.id)}
+                          />
+                          {c.name}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="aa-field full">
                   <button
                     type="submit"
@@ -1112,6 +1278,87 @@ export default function AgentAutomationsPage() {
                   </button>
                 </div>
               </form>
+
+              {editingTopicId && editForm && (
+                <form
+                  className="aa-topic-form"
+                  onSubmit={saveEditTopic}
+                  style={{
+                    border: "2px solid #2563eb",
+                    borderRadius: 12,
+                    padding: 14,
+                    marginBottom: 16,
+                  }}
+                >
+                  <h3 style={{ margin: "0 0 10px" }}>Edit topic #{editingTopicId}</h3>
+                  <label className="aa-field full">
+                    Topic
+                    <input
+                      className="aa-input"
+                      value={editForm.topic}
+                      onChange={(e) =>
+                        setEditForm((p) => ({ ...p, topic: e.target.value }))
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="aa-field">
+                    Author
+                    <input
+                      className="aa-input"
+                      value={editForm.author_name}
+                      onChange={(e) =>
+                        setEditForm((p) => ({ ...p, author_name: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="aa-field">
+                    Tags
+                    <input
+                      className="aa-input"
+                      value={editForm.tags}
+                      onChange={(e) =>
+                        setEditForm((p) => ({ ...p, tags: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="aa-field full">
+                    Notes
+                    <textarea
+                      className="aa-textarea"
+                      value={editForm.notes}
+                      onChange={(e) =>
+                        setEditForm((p) => ({ ...p, notes: e.target.value }))
+                      }
+                    />
+                  </label>
+                  {categories.length > 0 && (
+                    <div className="aa-field full">
+                      <span style={{ fontWeight: 700, fontSize: 13 }}>Categories</span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                        {categories.map((c) => (
+                          <label key={c.id} style={{ fontSize: 13 }}>
+                            <input
+                              type="checkbox"
+                              checked={(editForm.category_ids || []).includes(c.id)}
+                              onChange={() => toggleCategory(setEditForm, c.id)}
+                            />{" "}
+                            {c.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="aa-actions">
+                    <button type="submit" className="aa-btn primary">
+                      Save changes
+                    </button>
+                    <button type="button" className="aa-btn secondary" onClick={cancelEditTopic}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
 
               <div className="aa-table-wrap">
                 <table className="aa-table">
@@ -1133,6 +1380,11 @@ export default function AgentAutomationsPage() {
                               {t.author_name}
                             </div>
                           ) : null}
+                          {categoryLabel(t.category_ids) ? (
+                            <div style={{ color: "#64748b", marginTop: 2, fontSize: 12 }}>
+                              {categoryLabel(t.category_ids)}
+                            </div>
+                          ) : null}
                         </td>
                         <td>
                           <span className={statusBadgeClass(t.status)}>
@@ -1141,22 +1393,39 @@ export default function AgentAutomationsPage() {
                         </td>
                         <td>
                           {t.generated_post_id ? (
-                            <Link href={`/admin/blog/edit/${t.generated_post_id}`}>
-                              Open draft #{t.generated_post_id}
-                            </Link>
+                            <>
+                              <Link href={`/admin/blog/edit/${t.generated_post_id}`}>
+                                {t.generated_title || `Post #${t.generated_post_id}`}
+                              </Link>
+                              <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
+                                #{t.generated_post_id}
+                                {t.generated_slug ? ` · /blogs/${t.generated_slug}` : ""}
+                              </div>
+                            </>
                           ) : (
                             t.error_message || "—"
                           )}
                         </td>
                         <td>
-                          <button
-                            type="button"
-                            className="aa-btn danger"
-                            onClick={() => removeTopic(t.id)}
-                            disabled={!canEditBlog}
-                          >
-                            Remove
-                          </button>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {canEditBlog && t.status !== "processing" && (
+                              <button
+                                type="button"
+                                className="aa-btn secondary"
+                                onClick={() => startEditTopic(t)}
+                              >
+                                Edit
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="aa-btn danger"
+                              onClick={() => removeTopic(t.id)}
+                              disabled={!canEditBlog}
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
