@@ -36,8 +36,7 @@ export async function deleteTopic(id) {
 }
 
 export async function runNow() {
-  const data = await api.post(`${BASE}/run-now`, {});
-  return data.result;
+  return api.post(`${BASE}/run-now`, {});
 }
 
 export async function sendTestEmail(approval_emails) {
