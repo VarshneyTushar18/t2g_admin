@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import * as api from "../services/blog20Service";
 
@@ -16,19 +16,21 @@ export default function MailerLiteSessionAlert({
   const [botStatus, setBotStatus] = useState(null);
 
   const status = settings?.mailerlite_session_status;
-  const waitingOtp =
-    status === "awaiting_otp" ||
-    settings?.mailerlite_bot_waiting_otp ||
-    botStatus?.waiting_otp;
+  const settingsWantOtp =
+    status === "awaiting_otp" || Boolean(settings?.mailerlite_bot_waiting_otp);
+  const waitingOtp = settingsWantOtp || Boolean(botStatus?.waiting_otp);
+
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
 
   useEffect(() => {
-    if (!waitingOtp) return undefined;
+    if (!settingsWantOtp) return undefined;
     const poll = async () => {
       try {
         const s = await api.getMailerLiteBotStatus();
         setBotStatus(s);
-        if (s.session_status === "ok" && !s.waiting_otp && onRefresh) {
-          onRefresh();
+        if (s.session_status === "ok" && !s.waiting_otp && onRefreshRef.current) {
+          onRefreshRef.current();
         }
       } catch {
         /* ignore poll errors */
@@ -37,7 +39,7 @@ export default function MailerLiteSessionAlert({
     poll();
     const id = setInterval(poll, 4000);
     return () => clearInterval(id);
-  }, [waitingOtp, onRefresh]);
+  }, [settingsWantOtp]);
 
   if ((!status || status === "ok") && !waitingOtp) return null;
 

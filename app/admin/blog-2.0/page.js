@@ -15,14 +15,17 @@ export default function Blog20OverviewPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const canViewBlog20 = canView("blog_2_0");
+
   useEffect(() => {
     if (authLoading) return;
-    if (!canView("blog_2_0")) {
+    if (!canViewBlog20) {
       router.replace("/admin");
       return;
     }
     load();
-  }, [authLoading, canView, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, canViewBlog20]);
 
   const load = async () => {
     setLoading(true);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
@@ -39,20 +39,14 @@ export default function Blog20DraftsPage() {
   const [settings, setSettings] = useState(null);
 
   const canEditModule = canEdit("blog_2_0") && !isReadOnly("blog_2_0");
-  const botActive =
-    pushingId != null ||
-    drafts.some((d) => d.mailerlite_push_status === "processing");
+  const canViewBlog20 = canView("blog_2_0");
+  const botActive = pushingId != null;
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!canView("blog_2_0")) {
-      router.replace("/admin");
-      return;
-    }
-    load();
-  }, [authLoading, canView, router]);
+  const loadInFlight = useRef(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    if (loadInFlight.current) return;
+    loadInFlight.current = true;
     setLoading(true);
     try {
       const [list, s] = await Promise.all([api.listDrafts(), api.getSettings()]);
@@ -62,23 +56,41 @@ export default function Blog20DraftsPage() {
       setError(err.message || "Failed to load drafts");
     } finally {
       setLoading(false);
+      loadInFlight.current = false;
     }
-  };
+  }, []);
 
-  const refreshDraftsQuiet = async () => {
+  const refreshDraftsQuiet = useCallback(async () => {
     try {
       const list = await api.listDrafts();
       setDrafts(list);
     } catch {
       /* ignore background refresh errors */
     }
-  };
+  }, []);
+
+  const handleBotComplete = useCallback(() => {
+    refreshDraftsQuiet();
+    load();
+  }, [load, refreshDraftsQuiet]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!canViewBlog20) {
+      router.replace("/admin");
+      return;
+    }
+    load();
+    // Intentionally omit router/load — unstable refs caused infinite refetch loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, canViewBlog20]);
 
   useEffect(() => {
     if (!botActive) return undefined;
-    const id = setInterval(refreshDraftsQuiet, 3000);
+    refreshDraftsQuiet();
+    const id = setInterval(refreshDraftsQuiet, 5000);
     return () => clearInterval(id);
-  }, [botActive]);
+  }, [botActive, refreshDraftsQuiet]);
 
   useEffect(() => {
     const validIds = new Set(drafts.map((d) => d.id));
@@ -220,13 +232,7 @@ export default function Blog20DraftsPage() {
         onRefresh={load}
       />
 
-      <BotPushProgress
-        active={botActive}
-        onComplete={() => {
-          refreshDraftsQuiet();
-          load();
-        }}
-      />
+      <BotPushProgress active={botActive} onComplete={handleBotComplete} />
 
       {error && <div className="b20-alert err">{error}</div>}
       {success && <div className="b20-alert ok">{success}</div>}

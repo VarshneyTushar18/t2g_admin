@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as api from "../services/blog20Service";
 
 const PHASES = [
@@ -15,6 +15,8 @@ const PHASES = [
 
 export default function BotPushProgress({ active, onComplete }) {
   const [status, setStatus] = useState(null);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     if (!active) {
@@ -34,7 +36,7 @@ export default function BotPushProgress({ active, onComplete }) {
           (job?.phase === "done" || job?.phase === "failed" || !job);
         if (finished && !doneNotified) {
           doneNotified = true;
-          if (onComplete) onComplete(s);
+          if (onCompleteRef.current) onCompleteRef.current(s);
         }
       } catch {
         /* ignore poll errors */
@@ -44,7 +46,7 @@ export default function BotPushProgress({ active, onComplete }) {
     poll();
     const id = setInterval(poll, 2000);
     return () => clearInterval(id);
-  }, [active, onComplete]);
+  }, [active]);
 
   if (!active) return null;
 
