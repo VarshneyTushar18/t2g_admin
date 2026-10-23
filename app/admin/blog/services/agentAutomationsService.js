@@ -41,8 +41,8 @@ export async function requeueTopic(id) {
   return data.topic;
 }
 
-export async function runNow() {
-  return api.post(`${BASE}/run-now`, {});
+export async function runNow({ bootstrap_trending = false } = {}) {
+  return api.post(`${BASE}/run-now`, { bootstrap_trending });
 }
 
 export async function sendTestEmail(approval_emails) {
