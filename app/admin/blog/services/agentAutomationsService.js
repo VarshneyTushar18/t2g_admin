@@ -6,6 +6,7 @@ export async function getSettings() {
   const data = await api.get(`${BASE}/settings`);
   return {
     settings: data.settings,
+    scheduleStatus: data.scheduleStatus || null,
     publicApiConfigured: Boolean(data.publicApiConfigured),
     publicApiBase: data.publicApiBase || null,
   };
