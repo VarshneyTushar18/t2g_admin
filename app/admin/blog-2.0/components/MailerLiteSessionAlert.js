@@ -14,6 +14,7 @@ export default function MailerLiteSessionAlert({
   const [otpError, setOtpError] = useState("");
   const [otpSuccess, setOtpSuccess] = useState("");
   const [botStatus, setBotStatus] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const status = settings?.mailerlite_session_status;
   const settingsWantOtp =
@@ -47,6 +48,33 @@ export default function MailerLiteSessionAlert({
   const title = isOtp
     ? "MailerLite verification code required"
     : "MailerLite session expired";
+
+  const loginHint =
+    botStatus?.login_email_hint ||
+    settings?.mailerlite_login_email_hint ||
+    null;
+
+  const handleCancelStuck = async () => {
+    if (!canEdit) return;
+    if (
+      !confirm(
+        "Cancel the stuck MailerLite push? You can push again after entering OTP from the bot login email.",
+      )
+    ) {
+      return;
+    }
+    setCancelling(true);
+    setOtpError("");
+    try {
+      const res = await api.cancelMailerLiteBot();
+      setOtpSuccess(res.message || "Push cancelled. Try again with a fresh OTP.");
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      setOtpError(err.message || "Cancel failed");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const handleSubmitOtp = async (e) => {
     e.preventDefault();
@@ -82,8 +110,10 @@ export default function MailerLiteSessionAlert({
       {isOtp ? (
         <div style={{ marginTop: "0.75rem" }}>
           <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 0.5rem" }}>
-            Check the <strong>MailerLite bot login email</strong> for a verification code.
-            Enter it below while a push is running — the bot will continue automatically.
+            The bot on the <strong>server</strong> is not the same as MailerLite open in your
+            browser. Check the inbox for{" "}
+            <strong>{loginHint || "the bot login email saved in MailerLite settings"}</strong>{" "}
+            for a verification code, enter it below while the push is running.
           </p>
           {canEdit && (
             <form
@@ -122,8 +152,19 @@ export default function MailerLiteSessionAlert({
           )}
           {botStatus?.bot_busy && (
             <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "0.5rem 0 0" }}>
-              Bot is running and waiting for your code…
+              Bot is running and waiting for your code… (waits up to ~15 minutes)
             </p>
+          )}
+          {canEdit && (waitingOtp || botStatus?.bot_busy) && (
+            <button
+              type="button"
+              className="b20-btn b20-btn-secondary"
+              style={{ marginTop: "0.75rem" }}
+              disabled={cancelling}
+              onClick={handleCancelStuck}
+            >
+              {cancelling ? "Cancelling…" : "Cancel stuck push"}
+            </button>
           )}
         </div>
       ) : (

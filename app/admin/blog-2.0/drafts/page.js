@@ -232,7 +232,11 @@ export default function Blog20DraftsPage() {
         onRefresh={load}
       />
 
-      <BotPushProgress active={botActive} onComplete={handleBotComplete} />
+      <BotPushProgress
+        active={botActive}
+        onComplete={handleBotComplete}
+        canEdit={canEditModule}
+      />
 
       {error && <div className="b20-alert err">{error}</div>}
       {success && <div className="b20-alert ok">{success}</div>}

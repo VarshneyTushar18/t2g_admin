@@ -13,8 +13,9 @@ const PHASES = [
   "Saving draft",
 ];
 
-export default function BotPushProgress({ active, onComplete }) {
+export default function BotPushProgress({ active, onComplete, canEdit = false }) {
   const [status, setStatus] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
@@ -116,8 +117,33 @@ export default function BotPushProgress({ active, onComplete }) {
 
       {waitingOtp && (
         <p style={{ margin: "0.5rem 0 0", fontSize: "0.82rem", color: "#b45309" }}>
-          Bot paused for verification — submit the OTP code in the yellow banner above.
+          Bot paused for verification — submit the OTP from the{" "}
+          <strong>bot login email</strong> in the yellow banner above (not your personal
+          MailerLite tab).
         </p>
+      )}
+
+      {canEdit && (waitingOtp || busy) && (
+        <button
+          type="button"
+          className="b20-btn b20-btn-secondary"
+          style={{ marginTop: "0.75rem" }}
+          disabled={cancelling}
+          onClick={async () => {
+            if (!confirm("Cancel this push and unlock the bot?")) return;
+            setCancelling(true);
+            try {
+              await api.cancelMailerLiteBot();
+              if (onCompleteRef.current) onCompleteRef.current({ bot_busy: false });
+            } catch {
+              /* ignore */
+            } finally {
+              setCancelling(false);
+            }
+          }}
+        >
+          {cancelling ? "Cancelling…" : "Cancel stuck push"}
+        </button>
       )}
 
       {job?.phase === "done" && (
