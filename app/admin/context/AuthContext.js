@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { canAccessPath, getPostLoginPath } from "@/lib/adminModules";
@@ -12,6 +19,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const authReadyRef = useRef(false);
   const pathname = usePathname();
   const router = useRouter();
   const isLoginPage =
@@ -36,7 +44,8 @@ export function AuthProvider({ children }) {
 
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      const showBlockingLoader = !authReadyRef.current;
+      if (showBlockingLoader) setLoading(true);
       const u = await refreshUser();
       if (cancelled) return;
 
@@ -45,6 +54,7 @@ export function AuthProvider({ children }) {
       } else if (!canAccessPath(pathname, u)) {
         router.replace(getPostLoginPath(u));
       }
+      authReadyRef.current = true;
       setLoading(false);
     })();
 

@@ -5,17 +5,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import * as api from "../services/blog20Service";
-import MailerLiteSessionAlert from "../components/MailerLiteSessionAlert";
-import MailerLiteBotControls from "../components/MailerLiteBotControls";
-import BotPushProgress from "../components/BotPushProgress";
-import { useBlog20BotWatch } from "../hooks/useBlog20BotWatch";
+import Blog20BotPanel from "../components/Blog20BotPanel";
+import {
+  botStatusEqual,
+  useBlog20CombinedPoll,
+} from "../hooks/useBlog20CombinedPoll";
 import { blog20SettingsEqual, draftListsEqual } from "../utils/draftListStable";
 import "../blog-2.0.css";
 
 function statusLabel(d) {
   const s = d.mailerlite_push_status;
   if (s === "pushed") return "On MailerLite";
-  if (s === "processing") return d.mailerlite_push_step || "Pushing…";
+  if (s === "processing") return "Pushing…";
   if (s === "failed") return "Push failed";
   return "Blog-2.0 only";
 }
@@ -40,34 +41,49 @@ export default function Blog20DraftsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [settings, setSettings] = useState(null);
+  const [botStatus, setBotStatus] = useState(null);
+  const [pollActive, setPollActive] = useState(false);
 
   const canEditModule = canEdit("blog_2_0") && !isReadOnly("blog_2_0");
   const canViewBlog20 = canView("blog_2_0");
 
   const loadInFlight = useRef(false);
-  const draftsPollInFlight = useRef(false);
   const initialLoadDone = useRef(false);
+
+  const applyLiveSync = useCallback(({ bot, drafts: list, settings: s }) => {
+    setBotStatus((prev) => (botStatusEqual(prev, bot) ? prev : bot));
+    setDrafts((prev) => (draftListsEqual(prev, list) ? prev : list));
+    setSettings((prev) => (blog20SettingsEqual(prev, s) ? prev : s));
+  }, []);
 
   const refreshAllQuiet = useCallback(async () => {
     if (loadInFlight.current) return;
     loadInFlight.current = true;
     try {
-      const [list, s] = await Promise.all([api.listDrafts(), api.getSettings()]);
-      setDrafts((prev) => (draftListsEqual(prev, list) ? prev : list));
-      setSettings((prev) => (blog20SettingsEqual(prev, s) ? prev : s));
+      const [bot, list, s] = await Promise.all([
+        api.getMailerLiteBotStatus(),
+        api.listDrafts(),
+        api.getSettings(),
+      ]);
+      applyLiveSync({ bot, drafts: list, settings: s });
     } catch {
       /* ignore background refresh errors */
     } finally {
       loadInFlight.current = false;
     }
-  }, []);
+  }, [applyLiveSync]);
 
   const load = useCallback(async () => {
     if (loadInFlight.current) return;
     loadInFlight.current = true;
     if (!initialLoadDone.current) setLoading(true);
     try {
-      const [list, s] = await Promise.all([api.listDrafts(), api.getSettings()]);
+      const [bot, list, s] = await Promise.all([
+        api.getMailerLiteBotStatus().catch(() => null),
+        api.listDrafts(),
+        api.getSettings(),
+      ]);
+      if (bot) setBotStatus((prev) => (botStatusEqual(prev, bot) ? prev : bot));
       setDrafts((prev) => (draftListsEqual(prev, list) ? prev : list));
       setSettings((prev) => (blog20SettingsEqual(prev, s) ? prev : s));
     } catch (err) {
@@ -76,19 +92,6 @@ export default function Blog20DraftsPage() {
       initialLoadDone.current = true;
       setLoading(false);
       loadInFlight.current = false;
-    }
-  }, []);
-
-  const refreshDraftsQuiet = useCallback(async () => {
-    if (draftsPollInFlight.current) return;
-    draftsPollInFlight.current = true;
-    try {
-      const list = await api.listDrafts();
-      setDrafts((prev) => (draftListsEqual(prev, list) ? prev : list));
-    } catch {
-      /* ignore background refresh errors */
-    } finally {
-      draftsPollInFlight.current = false;
     }
   }, []);
 
@@ -103,15 +106,24 @@ export default function Blog20DraftsPage() {
       .filter((d) => d.mailerlite_push_status === "failed")
       .sort((a, b) => b.id - a.id)[0] || null;
 
-  const watchBot =
+  const watchBotNow =
     pushingId != null ||
     hasProcessingDraft ||
     Boolean(sessionNeedsWatch) ||
-    Boolean(settings?.mailerlite_bot_waiting_otp);
+    Boolean(settings?.mailerlite_bot_waiting_otp) ||
+    Boolean(botStatus?.bot_busy) ||
+    Boolean(botStatus?.waiting_otp);
 
-  const botStatus = useBlog20BotWatch(watchBot, {
-    onTick: refreshDraftsQuiet,
-  });
+  useEffect(() => {
+    if (watchBotNow) {
+      setPollActive(true);
+      return undefined;
+    }
+    const t = setTimeout(() => setPollActive(false), 12_000);
+    return () => clearTimeout(t);
+  }, [watchBotNow]);
+
+  useBlog20CombinedPoll(pollActive, applyLiveSync);
 
   const ghostProcessing =
     hasProcessingDraft &&
@@ -121,23 +133,17 @@ export default function Blog20DraftsPage() {
     botStatus.job?.phase !== "done";
 
   const botUiActive =
-    watchBot &&
-    (Boolean(botStatus?.bot_busy) ||
-      Boolean(botStatus?.waiting_otp) ||
-      Boolean(botStatus?.job) ||
-      pushingId != null ||
-      hasProcessingDraft);
+    pollActive ||
+    watchBotNow ||
+    Boolean(botStatus?.bot_busy) ||
+    Boolean(botStatus?.waiting_otp) ||
+    Boolean(botStatus?.job) ||
+    pushingId != null ||
+    hasProcessingDraft;
 
   const handleBotComplete = useCallback(() => {
     refreshAllQuiet();
   }, [refreshAllQuiet]);
-
-  useEffect(() => {
-    const phase = botStatus?.job?.phase;
-    if (phase === "done" || phase === "failed") {
-      refreshAllQuiet();
-    }
-  }, [botStatus?.job?.phase, refreshAllQuiet]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -296,28 +302,17 @@ export default function Blog20DraftsPage() {
         </p>
       </div>
 
-      <MailerLiteSessionAlert
+      <Blog20BotPanel
         settings={settings}
+        botStatus={botStatus}
         canEdit={canEditModule}
         onRefresh={refreshAllQuiet}
-        botStatus={botStatus}
-      />
-
-      <MailerLiteBotControls
-        botStatus={botStatus}
         processingDraft={processingDraft}
         retryDraft={retryDraft}
-        canEdit={canEditModule}
-        onRefresh={refreshAllQuiet}
         onStartPush={(id, publishLive) => handlePush(id, publishLive)}
-      />
-
-      <BotPushProgress
-        active={botUiActive}
-        onComplete={handleBotComplete}
-        canEdit={canEditModule}
-        botStatus={botStatus}
+        botUiActive={botUiActive}
         ghostProcessing={ghostProcessing}
+        onBotComplete={handleBotComplete}
       />
 
       {error && <div className="b20-alert err">{error}</div>}
@@ -392,9 +387,6 @@ export default function Blog20DraftsPage() {
                 <div className="b20-draft-meta">
                   #{d.id} · {statusLabel(d)}
                 </div>
-                {d.mailerlite_push_status === "processing" && d.mailerlite_push_step && (
-                  <div className="b20-draft-step">{d.mailerlite_push_step}</div>
-                )}
                 {d.mailerlite_push_status === "failed" && d.mailerlite_push_error && (
                   <details className="b20-push-error">
                     <summary>

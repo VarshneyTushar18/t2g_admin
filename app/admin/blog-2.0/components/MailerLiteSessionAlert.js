@@ -20,8 +20,7 @@ export default function MailerLiteSessionAlert({
   const [otpError, setOtpError] = useState("");
   const [otpSuccess, setOtpSuccess] = useState("");
   const [cancelling, setCancelling] = useState(false);
-  const sessionOkHandledRef = useRef(false);
-  const otpBannerLatchedRef = useRef(false);
+  const [bannerOpen, setBannerOpen] = useState(false);
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
 
@@ -34,53 +33,25 @@ export default function MailerLiteSessionAlert({
     sessionFromBot && sessionFromBot !== "ok" ? sessionFromBot : status;
   const waitingOtp =
     Boolean(botStatus?.waiting_otp) ||
-    settingsWantOtp ||
-    Boolean(botStatus?.bot_busy && settingsWantOtp);
+    settingsWantOtp;
 
-  if (waitingOtp || effectiveStatus === "awaiting_otp") {
-    otpBannerLatchedRef.current = true;
-  } else if (
-    !settingsWantOtp &&
-    !botStatus?.waiting_otp &&
-    !botStatus?.bot_busy &&
-    (effectiveStatus === "ok" || !effectiveStatus)
-  ) {
-    otpBannerLatchedRef.current = false;
-  }
-
-  const showBanner =
+  const wantsBanner =
     waitingOtp ||
-    otpBannerLatchedRef.current ||
     (effectiveStatus && effectiveStatus !== "ok");
 
   useEffect(() => {
-    if (settingsWantOtp || status === "awaiting_otp" || status === "needed") {
-      sessionOkHandledRef.current = false;
+    if (wantsBanner) {
+      setBannerOpen(true);
+      return undefined;
     }
-  }, [settingsWantOtp, status]);
+    if (!bannerOpen) return undefined;
+    const t = setTimeout(() => setBannerOpen(false), 2000);
+    return () => clearTimeout(t);
+  }, [wantsBanner, bannerOpen]);
 
-  useEffect(() => {
-    if (!botStatusProp) return;
-    if (
-      botStatus?.session_status === "ok" &&
-      !botStatus?.waiting_otp &&
-      !botStatus?.bot_busy &&
-      !sessionOkHandledRef.current &&
-      onRefreshRef.current
-    ) {
-      sessionOkHandledRef.current = true;
-      const t = setTimeout(() => onRefreshRef.current?.(), 400);
-      return () => clearTimeout(t);
-    }
-    return undefined;
-  }, [botStatusProp, botStatus?.session_status, botStatus?.waiting_otp, botStatus?.bot_busy]);
+  if (!bannerOpen) return null;
 
-  if (!showBanner) return null;
-
-  const isOtp =
-    waitingOtp ||
-    effectiveStatus === "awaiting_otp" ||
-    otpBannerLatchedRef.current;
+  const isOtp = waitingOtp || effectiveStatus === "awaiting_otp";
   const title = isOtp
     ? "MailerLite verification code required"
     : "MailerLite session expired";
@@ -104,7 +75,6 @@ export default function MailerLiteSessionAlert({
     try {
       const res = await api.cancelMailerLiteBot();
       setOtpSuccess(res.message || "Push cancelled. Try again with a fresh OTP.");
-      sessionOkHandledRef.current = false;
       if (onRefresh) onRefresh();
     } catch (err) {
       setOtpError(err.message || "Cancel failed");

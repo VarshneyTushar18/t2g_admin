@@ -96,7 +96,6 @@
 .b20-dot.active {
   background: #7c3aed;
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
-  animation: b20-pulse 1.5s ease-in-out infinite;
 }
 
 .b20-dot.failed {
@@ -192,6 +191,11 @@
   color: #7f1d1d;
   max-height: 160px;
   overflow: auto;
+}
+
+.b20-bot-panel {
+  min-height: 4rem;
+  contain: layout style;
 }
 
 .b20-page .b20-alert[role="alert"] {

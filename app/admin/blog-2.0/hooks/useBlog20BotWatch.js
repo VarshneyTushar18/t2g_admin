@@ -3,23 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import * as api from "../services/blog20Service";
 
-const POLL_MS = 12_000;
+import { botStatusEqual } from "./useBlog20CombinedPoll";
 
-function botStatusEqual(a, b) {
-  if (!a && !b) return true;
-  if (!a || !b) return false;
-  return (
-    a.bot_busy === b.bot_busy &&
-    a.waiting_otp === b.waiting_otp &&
-    a.session_status === b.session_status &&
-    a.session_message === b.session_message &&
-    a.job?.phase === b.job?.phase &&
-    a.job?.step === b.job?.step &&
-    a.job?.draft_id === b.job?.draft_id &&
-    a.job?.message === b.job?.message &&
-    a.job?.percent === b.job?.percent
-  );
-}
+const POLL_MS = 12_000;
 
 /**
  * Single poller for MailerLite bot status (avoids duplicate /mailerlite/bot/status storms).
@@ -33,8 +19,6 @@ export function useBlog20BotWatch(active, { onTick } = {}) {
 
   useEffect(() => {
     if (!active) {
-      setStatus(null);
-      lastStatusRef.current = null;
       return undefined;
     }
 
