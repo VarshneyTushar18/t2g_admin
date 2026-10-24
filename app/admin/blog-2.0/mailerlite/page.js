@@ -59,38 +59,52 @@ export default function Blog20MailerLitePage() {
       return;
     }
     load();
-  }, [authLoading, canView, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, canView]);
+
+  const applySettings = (s) => {
+    setMeta(s);
+    setForm({
+      ...EMPTY,
+      project_name: s.project_name || EMPTY.project_name,
+      client_site_url: s.client_site_url || EMPTY.client_site_url,
+      client_blog_url: s.client_blog_url || EMPTY.client_blog_url,
+      website_mode: s.website_mode || EMPTY.website_mode,
+      newsletter_mode: s.newsletter_mode || EMPTY.newsletter_mode,
+      mailerlite_enabled: s.mailerlite_enabled !== false,
+      mailerlite_from_email: s.mailerlite_from_email || "",
+      mailerlite_from_name: s.mailerlite_from_name || EMPTY.mailerlite_from_name,
+      mailerlite_group_id: s.mailerlite_group_id || "",
+      mailerlite_site_id: s.mailerlite_site_id || EMPTY.mailerlite_site_id,
+      mailerlite_bot_enabled: Boolean(s.mailerlite_bot_enabled),
+      mailerlite_bot_auto_push: Boolean(s.mailerlite_bot_auto_push),
+      mailerlite_allow_direct_publish: s.mailerlite_allow_direct_publish !== false,
+      approval_emails: (s.approval_emails || []).join(", "),
+      teams_webhook_url: s.teams_webhook_url || "",
+      timezone: s.timezone || EMPTY.timezone,
+      automation_frequency: s.automation_frequency || EMPTY.automation_frequency,
+      automation_run_time: s.automation_run_time || EMPTY.automation_run_time,
+      newsletter_send_timing: s.newsletter_send_timing || EMPTY.newsletter_send_timing,
+      newsletter_send_time: s.newsletter_send_time || EMPTY.newsletter_send_time,
+      notes: s.notes || "",
+    });
+  };
+
+  const refreshQuiet = async () => {
+    try {
+      const s = await api.getSettings();
+      applySettings(s);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const load = async () => {
     setLoading(true);
     setError("");
     try {
       const s = await api.getSettings();
-      setMeta(s);
-      setForm({
-        ...EMPTY,
-        project_name: s.project_name || EMPTY.project_name,
-        client_site_url: s.client_site_url || EMPTY.client_site_url,
-        client_blog_url: s.client_blog_url || EMPTY.client_blog_url,
-        website_mode: s.website_mode || EMPTY.website_mode,
-        newsletter_mode: s.newsletter_mode || EMPTY.newsletter_mode,
-        mailerlite_enabled: s.mailerlite_enabled !== false,
-        mailerlite_from_email: s.mailerlite_from_email || "",
-        mailerlite_from_name: s.mailerlite_from_name || EMPTY.mailerlite_from_name,
-        mailerlite_group_id: s.mailerlite_group_id || "",
-        mailerlite_site_id: s.mailerlite_site_id || EMPTY.mailerlite_site_id,
-        mailerlite_bot_enabled: Boolean(s.mailerlite_bot_enabled),
-        mailerlite_bot_auto_push: Boolean(s.mailerlite_bot_auto_push),
-        mailerlite_allow_direct_publish: s.mailerlite_allow_direct_publish !== false,
-        approval_emails: (s.approval_emails || []).join(", "),
-        teams_webhook_url: s.teams_webhook_url || "",
-        timezone: s.timezone || EMPTY.timezone,
-        automation_frequency: s.automation_frequency || EMPTY.automation_frequency,
-        automation_run_time: s.automation_run_time || EMPTY.automation_run_time,
-        newsletter_send_timing: s.newsletter_send_timing || EMPTY.newsletter_send_timing,
-        newsletter_send_time: s.newsletter_send_time || EMPTY.newsletter_send_time,
-        notes: s.notes || "",
-      });
+      applySettings(s);
     } catch (err) {
       setError(err.message || "Failed to load settings");
     } finally {
@@ -249,7 +263,7 @@ export default function Blog20MailerLitePage() {
       <MailerLiteSessionAlert
         settings={meta}
         canEdit={canEditModule}
-        onRefresh={load}
+        onRefresh={refreshQuiet}
       />
 
       {error && <div className="b20-alert err">{error}</div>}

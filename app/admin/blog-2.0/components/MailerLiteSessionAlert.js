@@ -23,14 +23,40 @@ export default function MailerLiteSessionAlert({
 
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
+  const sessionOkHandledRef = useRef(false);
+
+  const alertActive =
+    (status && status !== "ok") || settingsWantOtp || Boolean(botStatus?.waiting_otp);
 
   useEffect(() => {
-    if (!settingsWantOtp) return undefined;
+    if (settingsWantOtp || status === "awaiting_otp" || status === "needed") {
+      sessionOkHandledRef.current = false;
+    }
+  }, [settingsWantOtp, status]);
+
+  useEffect(() => {
+    if (!alertActive) return undefined;
     const poll = async () => {
       try {
         const s = await api.getMailerLiteBotStatus();
-        setBotStatus(s);
-        if (s.session_status === "ok" && !s.waiting_otp && onRefreshRef.current) {
+        setBotStatus((prev) => {
+          if (
+            prev?.bot_busy === s.bot_busy &&
+            prev?.waiting_otp === s.waiting_otp &&
+            prev?.session_status === s.session_status &&
+            prev?.session_message === s.session_message
+          ) {
+            return prev;
+          }
+          return s;
+        });
+        if (
+          s.session_status === "ok" &&
+          !s.waiting_otp &&
+          !sessionOkHandledRef.current &&
+          onRefreshRef.current
+        ) {
+          sessionOkHandledRef.current = true;
           onRefreshRef.current();
         }
       } catch {
@@ -38,9 +64,9 @@ export default function MailerLiteSessionAlert({
       }
     };
     poll();
-    const id = setInterval(poll, 4000);
+    const id = setInterval(poll, 8000);
     return () => clearInterval(id);
-  }, [settingsWantOtp]);
+  }, [alertActive]);
 
   if ((!status || status === "ok") && !waitingOtp) return null;
 

@@ -40,6 +40,15 @@ export default function Blog20OverviewPage() {
     }
   };
 
+  const refreshQuiet = async () => {
+    try {
+      const res = await api.getOverview();
+      setData(res);
+    } catch {
+      /* ignore background refresh */
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="b20-page">
@@ -63,7 +72,7 @@ export default function Blog20OverviewPage() {
         </p>
       </div>
 
-      <MailerLiteSessionAlert settings={data?.settings} onRefresh={load} />
+      <MailerLiteSessionAlert settings={data?.settings} onRefresh={refreshQuiet} />
 
       {error && <div className="b20-alert err">{error}</div>}
 

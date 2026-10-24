@@ -44,6 +44,20 @@ export default function Blog20DraftsPage() {
 
   const loadInFlight = useRef(false);
 
+  const refreshAllQuiet = useCallback(async () => {
+    if (loadInFlight.current) return;
+    loadInFlight.current = true;
+    try {
+      const [list, s] = await Promise.all([api.listDrafts(), api.getSettings()]);
+      setDrafts(list);
+      setSettings(s);
+    } catch {
+      /* ignore background refresh errors */
+    } finally {
+      loadInFlight.current = false;
+    }
+  }, []);
+
   const load = useCallback(async () => {
     if (loadInFlight.current) return;
     loadInFlight.current = true;
@@ -70,9 +84,8 @@ export default function Blog20DraftsPage() {
   }, []);
 
   const handleBotComplete = useCallback(() => {
-    refreshDraftsQuiet();
-    load();
-  }, [load, refreshDraftsQuiet]);
+    refreshAllQuiet();
+  }, [refreshAllQuiet]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -183,7 +196,7 @@ export default function Blog20DraftsPage() {
     try {
       const res = await api.deleteDraft(d.id);
       setSuccess(res.note || `Draft #${d.id} deleted.`);
-      await load();
+      await refreshAllQuiet();
     } catch (err) {
       setError(err.message || "Failed to delete draft");
     } finally {
@@ -203,7 +216,7 @@ export default function Blog20DraftsPage() {
             ? `Draft ${id} published live on MailerLite.`
             : `Draft ${id} saved as draft on MailerLite.`),
       );
-      await load();
+      await refreshAllQuiet();
     } catch (err) {
       setError(err.message || "Push failed");
     } finally {
@@ -229,7 +242,7 @@ export default function Blog20DraftsPage() {
       <MailerLiteSessionAlert
         settings={settings}
         canEdit={canEditModule}
-        onRefresh={load}
+        onRefresh={refreshAllQuiet}
       />
 
       <BotPushProgress
