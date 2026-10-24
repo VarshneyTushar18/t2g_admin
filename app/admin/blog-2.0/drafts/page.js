@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import * as api from "../services/blog20Service";
 import MailerLiteSessionAlert from "../components/MailerLiteSessionAlert";
+import MailerLiteBotControls from "../components/MailerLiteBotControls";
 import BotPushProgress from "../components/BotPushProgress";
 import { useBlog20BotWatch } from "../hooks/useBlog20BotWatch";
+import { blog20SettingsEqual, draftListsEqual } from "../utils/draftListStable";
 import "../blog-2.0.css";
 
 function statusLabel(d) {
@@ -44,14 +46,15 @@ export default function Blog20DraftsPage() {
 
   const loadInFlight = useRef(false);
   const draftsPollInFlight = useRef(false);
+  const initialLoadDone = useRef(false);
 
   const refreshAllQuiet = useCallback(async () => {
     if (loadInFlight.current) return;
     loadInFlight.current = true;
     try {
       const [list, s] = await Promise.all([api.listDrafts(), api.getSettings()]);
-      setDrafts(list);
-      setSettings(s);
+      setDrafts((prev) => (draftListsEqual(prev, list) ? prev : list));
+      setSettings((prev) => (blog20SettingsEqual(prev, s) ? prev : s));
     } catch {
       /* ignore background refresh errors */
     } finally {
@@ -62,14 +65,15 @@ export default function Blog20DraftsPage() {
   const load = useCallback(async () => {
     if (loadInFlight.current) return;
     loadInFlight.current = true;
-    setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
     try {
       const [list, s] = await Promise.all([api.listDrafts(), api.getSettings()]);
-      setDrafts(list);
-      setSettings(s);
+      setDrafts((prev) => (draftListsEqual(prev, list) ? prev : list));
+      setSettings((prev) => (blog20SettingsEqual(prev, s) ? prev : s));
     } catch (err) {
       setError(err.message || "Failed to load drafts");
     } finally {
+      initialLoadDone.current = true;
       setLoading(false);
       loadInFlight.current = false;
     }
@@ -80,7 +84,7 @@ export default function Blog20DraftsPage() {
     draftsPollInFlight.current = true;
     try {
       const list = await api.listDrafts();
-      setDrafts(list);
+      setDrafts((prev) => (draftListsEqual(prev, list) ? prev : list));
     } catch {
       /* ignore background refresh errors */
     } finally {
@@ -91,9 +95,14 @@ export default function Blog20DraftsPage() {
   const sessionNeedsWatch =
     settings?.mailerlite_session_status &&
     settings.mailerlite_session_status !== "ok";
-  const hasProcessingDraft = drafts.some(
-    (d) => d.mailerlite_push_status === "processing",
-  );
+  const processingDraft =
+    drafts.find((d) => d.mailerlite_push_status === "processing") || null;
+  const hasProcessingDraft = Boolean(processingDraft);
+  const retryDraft =
+    [...drafts]
+      .filter((d) => d.mailerlite_push_status === "failed")
+      .sort((a, b) => b.id - a.id)[0] || null;
+
   const watchBot =
     pushingId != null ||
     hasProcessingDraft ||
@@ -103,6 +112,13 @@ export default function Blog20DraftsPage() {
   const botStatus = useBlog20BotWatch(watchBot, {
     onTick: refreshDraftsQuiet,
   });
+
+  const ghostProcessing =
+    hasProcessingDraft &&
+    botStatus != null &&
+    !botStatus.bot_busy &&
+    !botStatus.waiting_otp &&
+    botStatus.job?.phase !== "done";
 
   const botUiActive =
     watchBot &&
@@ -203,7 +219,7 @@ export default function Blog20DraftsPage() {
       const res = await api.deleteDraftsBulk(ids);
       setSuccess(res.note || `Deleted ${ids.length} drafts.`);
       setSelectedIds(new Set());
-      await load();
+      await refreshAllQuiet();
     } catch (err) {
       setError(err.message || "Failed to delete selected drafts");
     } finally {
@@ -248,12 +264,24 @@ export default function Blog20DraftsPage() {
       await refreshAllQuiet();
     } catch (err) {
       setError(err.message || "Push failed");
-    } finally {
-      setPushingId(null);
+      setPushingId((pid) => (pid === id ? null : pid));
     }
   };
 
-  if (authLoading || loading) {
+  useEffect(() => {
+    if (pushingId == null) return;
+    const d = drafts.find((x) => x.id === pushingId);
+    if (
+      d &&
+      (d.mailerlite_push_status === "processing" ||
+        d.mailerlite_push_status === "failed" ||
+        d.mailerlite_push_status === "pushed")
+    ) {
+      setPushingId(null);
+    }
+  }, [drafts, pushingId]);
+
+  if (authLoading || (loading && !initialLoadDone.current)) {
     return <div className="b20-page"><p>Loading drafts…</p></div>;
   }
 
@@ -275,11 +303,21 @@ export default function Blog20DraftsPage() {
         botStatus={botStatus}
       />
 
+      <MailerLiteBotControls
+        botStatus={botStatus}
+        processingDraft={processingDraft}
+        retryDraft={retryDraft}
+        canEdit={canEditModule}
+        onRefresh={refreshAllQuiet}
+        onStartPush={(id, publishLive) => handlePush(id, publishLive)}
+      />
+
       <BotPushProgress
         active={botUiActive}
         onComplete={handleBotComplete}
         canEdit={canEditModule}
         botStatus={botStatus}
+        ghostProcessing={ghostProcessing}
       />
 
       {error && <div className="b20-alert err">{error}</div>}
@@ -381,19 +419,33 @@ export default function Blog20DraftsPage() {
                       <button
                         type="button"
                         className="b20-btn b20-btn-secondary"
-                        disabled={pushingId === d.id}
+                        disabled={
+                          pushingId === d.id ||
+                          d.mailerlite_push_status === "processing"
+                        }
                         onClick={() => handlePush(d.id, false)}
                       >
-                        {pushingId === d.id ? "Working…" : "Save as draft"}
+                        {d.mailerlite_push_status === "processing"
+                          ? "Pushing…"
+                          : pushingId === d.id
+                            ? "Working…"
+                            : "Save as draft"}
                       </button>
                       {settings?.mailerlite_allow_direct_publish !== false && (
                         <button
                           type="button"
                           className="b20-btn b20-btn-primary"
-                          disabled={pushingId === d.id}
+                          disabled={
+                            pushingId === d.id ||
+                            d.mailerlite_push_status === "processing"
+                          }
                           onClick={() => handlePush(d.id, true)}
                         >
-                          {pushingId === d.id ? "Working…" : "Publish live"}
+                          {d.mailerlite_push_status === "processing"
+                            ? "Pushing…"
+                            : pushingId === d.id
+                              ? "Working…"
+                              : "Publish live"}
                         </button>
                       )}
                     </>

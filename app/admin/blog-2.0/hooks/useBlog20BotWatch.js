@@ -15,7 +15,9 @@ function botStatusEqual(a, b) {
     a.session_message === b.session_message &&
     a.job?.phase === b.job?.phase &&
     a.job?.step === b.job?.step &&
-    a.job?.draft_id === b.job?.draft_id
+    a.job?.draft_id === b.job?.draft_id &&
+    a.job?.message === b.job?.message &&
+    a.job?.percent === b.job?.percent
   );
 }
 
@@ -25,12 +27,14 @@ function botStatusEqual(a, b) {
 export function useBlog20BotWatch(active, { onTick } = {}) {
   const [status, setStatus] = useState(null);
   const inFlight = useRef(false);
+  const lastStatusRef = useRef(null);
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
 
   useEffect(() => {
     if (!active) {
       setStatus(null);
+      lastStatusRef.current = null;
       return undefined;
     }
 
@@ -39,8 +43,15 @@ export function useBlog20BotWatch(active, { onTick } = {}) {
       inFlight.current = true;
       try {
         const s = await api.getMailerLiteBotStatus();
-        setStatus((prev) => (botStatusEqual(prev, s) ? prev : s));
-        await onTickRef.current?.(s);
+        const prev = lastStatusRef.current;
+        const changed = !botStatusEqual(prev, s);
+        lastStatusRef.current = s;
+        setStatus((p) => (botStatusEqual(p, s) ? p : s));
+        const needsDraftSync =
+          changed || s.bot_busy || s.waiting_otp || s.job?.phase === "running";
+        if (needsDraftSync) {
+          await onTickRef.current?.(s);
+        }
       } catch {
         /* ignore */
       } finally {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import * as api from "../services/blog20Service";
 import MailerLiteSessionAlert from "../components/MailerLiteSessionAlert";
+import MailerLiteBotControls from "../components/MailerLiteBotControls";
 import { useBlog20BotWatch } from "../hooks/useBlog20BotWatch";
 import "../blog-2.0.css";
 
@@ -54,6 +55,7 @@ export default function Blog20MailerLitePage() {
   const canEditModule = canEdit("blog_2_0") && !isReadOnly("blog_2_0");
 
   const watchBot =
+    testingBot ||
     Boolean(meta?.mailerlite_bot_waiting_otp) ||
     (meta?.mailerlite_session_status &&
       meta.mailerlite_session_status !== "ok");
@@ -272,6 +274,22 @@ export default function Blog20MailerLitePage() {
         canEdit={canEditModule}
         onRefresh={refreshQuiet}
         botStatus={botStatus}
+      />
+
+      <MailerLiteBotControls
+        botStatus={botStatus}
+        canEdit={canEditModule}
+        onRefresh={refreshQuiet}
+        onStartBot={async () => {
+          if (!canEditModule) return;
+          setTestingBot(true);
+          setError("");
+          try {
+            return await api.testMailerLiteBot();
+          } finally {
+            setTestingBot(false);
+          }
+        }}
       />
 
       {error && <div className="b20-alert err">{error}</div>}

@@ -194,6 +194,26 @@
   overflow: auto;
 }
 
+.b20-page .b20-alert[role="alert"] {
+  min-height: 3rem;
+}
+
+.b20-bot-state {
+  font-weight: 600;
+}
+.b20-bot-state-idle {
+  color: #64748b;
+}
+.b20-bot-state-run {
+  color: #5b21b6;
+}
+.b20-bot-state-otp {
+  color: #b45309;
+}
+.b20-bot-state-stuck {
+  color: #b45309;
+}
+
 .b20-btn-danger {
   color: #b91c1c !important;
   border-color: #fecaca !important;

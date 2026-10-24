@@ -22,6 +22,7 @@ export default function BotPushProgress({
   onComplete,
   canEdit = false,
   botStatus: status = null,
+  ghostProcessing = false,
 }) {
   if (!active) return null;
 
@@ -33,15 +34,17 @@ export default function BotPushProgress({
   const total = job?.total_steps ?? PHASES.length;
   const message =
     job?.message ||
-    (waitingOtp
-      ? "Waiting for MailerLite OTP — enter code in the banner above"
-      : busy
-        ? "MailerLite bot is starting…"
-        : "Checking bot status…");
+    (ghostProcessing
+      ? "Draft is still marked as pushing but the bot is idle — use Stop bot, then Retry push"
+      : waitingOtp
+        ? "Waiting for MailerLite OTP — enter code in the banner above"
+        : busy
+          ? "MailerLite bot is starting…"
+          : "Checking bot status…");
 
   const phaseLabel = job?.label || PHASES[Math.max(0, step - 1)] || "Working";
 
-  if (!busy && !job && !waitingOtp) return null;
+  if (!busy && !job && !waitingOtp && !ghostProcessing) return null;
 
   return (
     <div
@@ -96,7 +99,7 @@ export default function BotPushProgress({
         </p>
       )}
 
-      {canEdit && (waitingOtp || busy) && (
+      {canEdit && (waitingOtp || busy || ghostProcessing) && (
         <button
           type="button"
           className="b20-btn b20-btn-secondary"
@@ -111,8 +114,14 @@ export default function BotPushProgress({
             }
           }}
         >
-          Cancel stuck push
+          Stop bot
         </button>
+      )}
+
+      {canEdit && ghostProcessing && !busy && !waitingOtp && (
+        <p style={{ margin: "0.5rem 0 0", fontSize: "0.82rem", color: "#b45309" }}>
+          Use the <strong>MailerLite bot</strong> bar above: Stop bot → Retry push.
+        </p>
       )}
 
       {job?.phase === "done" && (
