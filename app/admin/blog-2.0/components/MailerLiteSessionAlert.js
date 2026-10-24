@@ -4,29 +4,31 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import * as api from "../services/blog20Service";
 
+/**
+ * @param {object} props
+ * @param {object|null} props.settings
+ * @param {object|null} [props.botStatus] — when set, parent owns polling (no internal API calls)
+ */
 export default function MailerLiteSessionAlert({
   settings,
   canEdit = false,
   onRefresh,
+  botStatus: botStatusProp = undefined,
 }) {
   const [otp, setOtp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [otpError, setOtpError] = useState("");
   const [otpSuccess, setOtpSuccess] = useState("");
-  const [botStatus, setBotStatus] = useState(null);
   const [cancelling, setCancelling] = useState(false);
+  const sessionOkHandledRef = useRef(false);
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
 
   const status = settings?.mailerlite_session_status;
   const settingsWantOtp =
     status === "awaiting_otp" || Boolean(settings?.mailerlite_bot_waiting_otp);
+  const botStatus = botStatusProp ?? null;
   const waitingOtp = settingsWantOtp || Boolean(botStatus?.waiting_otp);
-
-  const onRefreshRef = useRef(onRefresh);
-  onRefreshRef.current = onRefresh;
-  const sessionOkHandledRef = useRef(false);
-
-  const alertActive =
-    (status && status !== "ok") || settingsWantOtp || Boolean(botStatus?.waiting_otp);
 
   useEffect(() => {
     if (settingsWantOtp || status === "awaiting_otp" || status === "needed") {
@@ -35,38 +37,17 @@ export default function MailerLiteSessionAlert({
   }, [settingsWantOtp, status]);
 
   useEffect(() => {
-    if (!alertActive) return undefined;
-    const poll = async () => {
-      try {
-        const s = await api.getMailerLiteBotStatus();
-        setBotStatus((prev) => {
-          if (
-            prev?.bot_busy === s.bot_busy &&
-            prev?.waiting_otp === s.waiting_otp &&
-            prev?.session_status === s.session_status &&
-            prev?.session_message === s.session_message
-          ) {
-            return prev;
-          }
-          return s;
-        });
-        if (
-          s.session_status === "ok" &&
-          !s.waiting_otp &&
-          !sessionOkHandledRef.current &&
-          onRefreshRef.current
-        ) {
-          sessionOkHandledRef.current = true;
-          onRefreshRef.current();
-        }
-      } catch {
-        /* ignore poll errors */
-      }
-    };
-    poll();
-    const id = setInterval(poll, 8000);
-    return () => clearInterval(id);
-  }, [alertActive]);
+    if (!botStatusProp) return;
+    if (
+      botStatus?.session_status === "ok" &&
+      !botStatus?.waiting_otp &&
+      !sessionOkHandledRef.current &&
+      onRefreshRef.current
+    ) {
+      sessionOkHandledRef.current = true;
+      onRefreshRef.current();
+    }
+  }, [botStatusProp, botStatus?.session_status, botStatus?.waiting_otp]);
 
   if ((!status || status === "ok") && !waitingOtp) return null;
 
@@ -94,6 +75,7 @@ export default function MailerLiteSessionAlert({
     try {
       const res = await api.cancelMailerLiteBot();
       setOtpSuccess(res.message || "Push cancelled. Try again with a fresh OTP.");
+      sessionOkHandledRef.current = false;
       if (onRefresh) onRefresh();
     } catch (err) {
       setOtpError(err.message || "Cancel failed");

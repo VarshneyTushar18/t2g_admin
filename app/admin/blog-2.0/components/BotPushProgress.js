@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import * as api from "../services/blog20Service";
 
 const PHASES = [
@@ -13,42 +12,17 @@ const PHASES = [
   "Saving draft",
 ];
 
-export default function BotPushProgress({ active, onComplete, canEdit = false }) {
-  const [status, setStatus] = useState(null);
-  const [cancelling, setCancelling] = useState(false);
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-
-  useEffect(() => {
-    if (!active) {
-      setStatus(null);
-      return undefined;
-    }
-
-    let doneNotified = false;
-
-    const poll = async () => {
-      try {
-        const s = await api.getMailerLiteBotStatus();
-        setStatus(s);
-        const job = s.job;
-        const finished =
-          !s.bot_busy &&
-          (job?.phase === "done" || job?.phase === "failed" || !job);
-        if (finished && !doneNotified) {
-          doneNotified = true;
-          if (onCompleteRef.current) onCompleteRef.current(s);
-        }
-      } catch {
-        /* ignore poll errors */
-      }
-    };
-
-    poll();
-    const id = setInterval(poll, 5000);
-    return () => clearInterval(id);
-  }, [active]);
-
+/**
+ * @param {object} props
+ * @param {boolean} props.active
+ * @param {object|null} [props.botStatus] — from useBlog20BotWatch (parent polls once)
+ */
+export default function BotPushProgress({
+  active,
+  onComplete,
+  canEdit = false,
+  botStatus: status = null,
+}) {
   if (!active) return null;
 
   const job = status?.job;
@@ -117,9 +91,8 @@ export default function BotPushProgress({ active, onComplete, canEdit = false })
 
       {waitingOtp && (
         <p style={{ margin: "0.5rem 0 0", fontSize: "0.82rem", color: "#b45309" }}>
-          Bot paused for verification — submit the OTP from the{" "}
-          <strong>bot login email</strong> in the yellow banner above (not your personal
-          MailerLite tab).
+          Bot paused for verification — submit the OTP from the <strong>bot login email</strong>{" "}
+          in the yellow banner above.
         </p>
       )}
 
@@ -128,21 +101,17 @@ export default function BotPushProgress({ active, onComplete, canEdit = false })
           type="button"
           className="b20-btn b20-btn-secondary"
           style={{ marginTop: "0.75rem" }}
-          disabled={cancelling}
           onClick={async () => {
             if (!confirm("Cancel this push and unlock the bot?")) return;
-            setCancelling(true);
             try {
               await api.cancelMailerLiteBot();
-              if (onCompleteRef.current) onCompleteRef.current({ bot_busy: false });
+              if (onComplete) onComplete({ bot_busy: false });
             } catch {
               /* ignore */
-            } finally {
-              setCancelling(false);
             }
           }}
         >
-          {cancelling ? "Cancelling…" : "Cancel stuck push"}
+          Cancel stuck push
         </button>
       )}
 

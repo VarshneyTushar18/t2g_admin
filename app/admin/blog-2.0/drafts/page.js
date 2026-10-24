@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import * as api from "../services/blog20Service";
 import MailerLiteSessionAlert from "../components/MailerLiteSessionAlert";
 import BotPushProgress from "../components/BotPushProgress";
+import { useBlog20BotWatch } from "../hooks/useBlog20BotWatch";
 import "../blog-2.0.css";
 
 function statusLabel(d) {
@@ -40,9 +41,9 @@ export default function Blog20DraftsPage() {
 
   const canEditModule = canEdit("blog_2_0") && !isReadOnly("blog_2_0");
   const canViewBlog20 = canView("blog_2_0");
-  const botActive = pushingId != null;
 
   const loadInFlight = useRef(false);
+  const draftsPollInFlight = useRef(false);
 
   const refreshAllQuiet = useCallback(async () => {
     if (loadInFlight.current) return;
@@ -75,17 +76,52 @@ export default function Blog20DraftsPage() {
   }, []);
 
   const refreshDraftsQuiet = useCallback(async () => {
+    if (draftsPollInFlight.current) return;
+    draftsPollInFlight.current = true;
     try {
       const list = await api.listDrafts();
       setDrafts(list);
     } catch {
       /* ignore background refresh errors */
+    } finally {
+      draftsPollInFlight.current = false;
     }
   }, []);
+
+  const sessionNeedsWatch =
+    settings?.mailerlite_session_status &&
+    settings.mailerlite_session_status !== "ok";
+  const hasProcessingDraft = drafts.some(
+    (d) => d.mailerlite_push_status === "processing",
+  );
+  const watchBot =
+    pushingId != null ||
+    hasProcessingDraft ||
+    Boolean(sessionNeedsWatch) ||
+    Boolean(settings?.mailerlite_bot_waiting_otp);
+
+  const botStatus = useBlog20BotWatch(watchBot, {
+    onTick: refreshDraftsQuiet,
+  });
+
+  const botUiActive =
+    watchBot &&
+    (Boolean(botStatus?.bot_busy) ||
+      Boolean(botStatus?.waiting_otp) ||
+      Boolean(botStatus?.job) ||
+      pushingId != null ||
+      hasProcessingDraft);
 
   const handleBotComplete = useCallback(() => {
     refreshAllQuiet();
   }, [refreshAllQuiet]);
+
+  useEffect(() => {
+    const phase = botStatus?.job?.phase;
+    if (phase === "done" || phase === "failed") {
+      refreshAllQuiet();
+    }
+  }, [botStatus?.job?.phase, refreshAllQuiet]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -97,13 +133,6 @@ export default function Blog20DraftsPage() {
     // Intentionally omit router/load — unstable refs caused infinite refetch loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, canViewBlog20]);
-
-  useEffect(() => {
-    if (!botActive) return undefined;
-    refreshDraftsQuiet();
-    const id = setInterval(refreshDraftsQuiet, 5000);
-    return () => clearInterval(id);
-  }, [botActive, refreshDraftsQuiet]);
 
   useEffect(() => {
     const validIds = new Set(drafts.map((d) => d.id));
@@ -243,12 +272,14 @@ export default function Blog20DraftsPage() {
         settings={settings}
         canEdit={canEditModule}
         onRefresh={refreshAllQuiet}
+        botStatus={botStatus}
       />
 
       <BotPushProgress
-        active={botActive}
+        active={botUiActive}
         onComplete={handleBotComplete}
         canEdit={canEditModule}
+        botStatus={botStatus}
       />
 
       {error && <div className="b20-alert err">{error}</div>}
