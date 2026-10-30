@@ -73,6 +73,33 @@ export async function requestDraftApproval(id) {
   return api.post(`${BASE}/drafts/${id}/request-approval`, {});
 }
 
+export async function getAutomations() {
+  return api.get(`${BASE}/automations`);
+}
+
+export async function saveAutomationSettings(payload) {
+  const data = await api.put(`${BASE}/automations/settings`, payload);
+  return data;
+}
+
+export async function createAutomationTopic(payload) {
+  const data = await api.post(`${BASE}/automations/topics`, payload);
+  return data.topic;
+}
+
+export async function deleteAutomationTopic(id) {
+  return api.delete(`${BASE}/automations/topics/${id}`);
+}
+
+export async function retryAutomationTopic(id) {
+  const data = await api.post(`${BASE}/automations/topics/${id}/retry`, {});
+  return data.topic;
+}
+
+export async function runAutomationsNow(options = {}) {
+  return api.post(`${BASE}/automations/run-now`, options);
+}
+
 export async function getAgentStatus() {
   return api.get(`${AGENT}/status`);
 }
