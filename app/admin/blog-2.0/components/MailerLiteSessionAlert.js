@@ -122,12 +122,36 @@ export default function MailerLiteSessionAlert({
 
       {isOtp ? (
         <div style={{ marginTop: "0.75rem" }}>
-          <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 0.5rem" }}>
-            The bot on the <strong>server</strong> is not the same as MailerLite open in your
-            browser. Check the inbox for{" "}
-            <strong>{loginHint || "the bot login email saved in MailerLite settings"}</strong>{" "}
-            for a verification code, enter it below while the push is running.
-          </p>
+          <ol
+            style={{
+              fontSize: "0.85rem",
+              color: "#64748b",
+              margin: "0 0 0.75rem",
+              paddingLeft: "1.25rem",
+              lineHeight: 1.55,
+            }}
+          >
+            <li>
+              Leave this page open — the bot must stay on &quot;Step 2/7 · Checking session&quot; or
+              similar while you enter the code.
+            </li>
+            <li>
+              Open the inbox for{" "}
+              <strong>{loginHint || "the bot login email in MailerLite settings"}</strong>{" "}
+              (not your personal MailerLite tab). Check spam.
+            </li>
+            <li>
+              Use the <strong>newest</strong> 6-digit code. If it fails, click Stop bot → push again
+              and wait for a new email.
+            </li>
+            <li>Submit the code below — the bot types it within a few seconds.</li>
+          </ol>
+          {!botStatus?.bot_busy && (
+            <p style={{ fontSize: "0.85rem", color: "#b45309", margin: "0 0 0.5rem" }}>
+              Bot is not running right now — start a push first, then submit OTP when the purple
+              progress bar appears.
+            </p>
+          )}
           {canEdit && (
             <form
               onSubmit={handleSubmitOtp}
