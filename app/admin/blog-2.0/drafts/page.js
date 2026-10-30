@@ -255,16 +255,34 @@ export default function Blog20DraftsPage() {
     setSuccess("");
     try {
       const res = await api.pushDraftToMailerLite(id, { publishLive });
-      setSuccess(
-        res.note ||
-          (publishLive
-            ? `Draft ${id} published live on MailerLite.`
-            : `Draft ${id} saved as draft on MailerLite.`),
-      );
+      if (res.accepted) {
+        setSuccess(
+          res.note ||
+            `Push started for draft #${id}. Progress updates below — submit OTP when prompted.`,
+        );
+      } else {
+        setSuccess(
+          res.note ||
+            (publishLive
+              ? `Draft ${id} published live on MailerLite.`
+              : `Draft ${id} saved as draft on MailerLite.`),
+        );
+      }
+      setPollActive(true);
       await refreshAllQuiet();
     } catch (err) {
-      setError(err.message || "Push failed");
-      setPushingId((pid) => (pid === id ? null : pid));
+      const msg = err.message || "Push failed";
+      if (/504|timed out/i.test(msg)) {
+        setSuccess(
+          "Request timed out at the proxy, but the bot may still be running. Watch progress below and enter OTP if prompted.",
+        );
+        setError("");
+        setPollActive(true);
+        await refreshAllQuiet();
+      } else {
+        setError(msg);
+        setPushingId((pid) => (pid === id ? null : pid));
+      }
     }
   };
 
