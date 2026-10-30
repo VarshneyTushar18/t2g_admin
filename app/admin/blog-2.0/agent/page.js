@@ -148,8 +148,16 @@ export default function Blog20AgentPage() {
       <div className="b20-hero">
         <h1>Blog Agent</h1>
         <p>
-          Bright CRM only — separate from Tech2Globe Blog. Describe a topic and the agent
-          writes the draft and sends the approval email automatically.
+          Bright CRM only — posts are written for the client MailerLite site (
+          <a
+            href="https://preview.mailerlite.io/preview/2583138/sites/196949098888169226/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            preview site
+          </a>
+          ). Describe a topic; the agent matches site voice and saves a draft (approval email if
+          configured).
         </p>
       </div>
 
@@ -212,8 +220,8 @@ export default function Blog20AgentPage() {
                 </p>
                 <div className="b20-chat-suggestions">
                   {[
-                    "Write about agentic CRM for small construction teams",
-                    "Draft: How CRM automation saves time on site visits",
+                    "Write about reducing missed quotation follow-ups for construction SMBs",
+                    "Draft: How centralized client management helps general contractors",
                   ].map((sample) => (
                     <button
                       key={sample}
