@@ -60,11 +60,8 @@ export default function Blog20DraftsPage() {
     if (loadInFlight.current) return;
     loadInFlight.current = true;
     try {
-      const [bot, list, s] = await Promise.all([
-        api.getMailerLiteBotStatus(),
-        api.listDrafts(),
-        api.getSettings(),
-      ]);
+      const bot = await api.getMailerLiteBotStatus();
+      const [list, s] = await Promise.all([api.listDrafts(), api.getSettings()]);
       applyLiveSync({ bot, drafts: list, settings: s });
     } catch {
       /* ignore background refresh errors */
@@ -78,11 +75,8 @@ export default function Blog20DraftsPage() {
     loadInFlight.current = true;
     if (!initialLoadDone.current) setLoading(true);
     try {
-      const [bot, list, s] = await Promise.all([
-        api.getMailerLiteBotStatus().catch(() => null),
-        api.listDrafts(),
-        api.getSettings(),
-      ]);
+      const bot = await api.getMailerLiteBotStatus().catch(() => null);
+      const [list, s] = await Promise.all([api.listDrafts(), api.getSettings()]);
       if (bot) setBotStatus((prev) => (botStatusEqual(prev, bot) ? prev : bot));
       setDrafts((prev) => (draftListsEqual(prev, list) ? prev : list));
       setSettings((prev) => (blog20SettingsEqual(prev, s) ? prev : s));

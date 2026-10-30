@@ -31,13 +31,19 @@ export default function MailerLiteSessionAlert({
   const sessionFromBot = botStatus?.session_status;
   const effectiveStatus =
     sessionFromBot && sessionFromBot !== "ok" ? sessionFromBot : status;
+  // OTP only applies while the server bot is actually running (avoids blink after DB/manual stop).
+  const botRunning = Boolean(botStatus?.bot_busy);
   const waitingOtp =
-    Boolean(botStatus?.waiting_otp) ||
-    settingsWantOtp;
+    botRunning &&
+    (Boolean(botStatus?.waiting_otp) ||
+      settingsWantOtp ||
+      effectiveStatus === "awaiting_otp");
 
   const wantsBanner =
     waitingOtp ||
-    (effectiveStatus && effectiveStatus !== "ok");
+    (effectiveStatus &&
+      effectiveStatus !== "ok" &&
+      effectiveStatus !== "awaiting_otp");
 
   useEffect(() => {
     if (wantsBanner) {

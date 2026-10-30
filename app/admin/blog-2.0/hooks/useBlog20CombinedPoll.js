@@ -37,8 +37,9 @@ export function useBlog20CombinedPoll(active, applySync) {
       if (inFlight.current) return;
       inFlight.current = true;
       try {
-        const [bot, list, settings] = await Promise.all([
-          api.getMailerLiteBotStatus(),
+        // Bot status reconciles orphaned "processing" drafts + ghost OTP in DB first.
+        const bot = await api.getMailerLiteBotStatus();
+        const [list, settings] = await Promise.all([
           api.listDrafts(),
           api.getSettings(),
         ]);

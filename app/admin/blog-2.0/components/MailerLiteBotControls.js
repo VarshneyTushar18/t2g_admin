@@ -47,8 +47,7 @@ export default function MailerLiteBotControls({
     stateClass = "run";
   }
 
-  const showStop =
-    canEdit && (busy || waitingOtp || Boolean(processingDraft) || ghostPush);
+  const showStop = canEdit && (busy || waitingOtp || ghostPush || Boolean(processingDraft));
 
   const pushTarget = processingDraft || retryDraft;
   const showStartPush =
