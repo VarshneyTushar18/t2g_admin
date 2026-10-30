@@ -215,8 +215,9 @@ export default function Blog20AgentPage() {
               <div className="b20-chat-welcome">
                 <h2>What blog should I write?</h2>
                 <p>
-                  Give a topic in one message — title, audience, and keyword are optional.
-                  I&apos;ll write the draft and trigger the approval email.
+                  Give a topic in one message. I&apos;ll write a full post in the same style as the
+                  articles already on the Bright CRM blog (construction CRM, ~800–1200 words,
+                  clear sections), save the draft, and send approval email if configured.
                 </p>
                 <div className="b20-chat-suggestions">
                   {[
