@@ -141,8 +141,8 @@ export default function MailerLiteSessionAlert({
               (not your personal MailerLite tab). Check spam.
             </li>
             <li>
-              Use the <strong>newest</strong> 6-digit code. If it fails, click Stop bot → push again
-              and wait for a new email.
+              Use the <strong>full code from the email</strong> (often 6 digits, sometimes 8–10). If
+              it fails, click Stop bot → push again and wait for a new email.
             </li>
             <li>Submit the code below — the bot types it within a few seconds.</li>
           </ol>
@@ -162,11 +162,11 @@ export default function MailerLiteSessionAlert({
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                placeholder="6-digit code"
+                placeholder="Code from email"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 12))}
                 disabled={submitting}
-                style={{ maxWidth: "160px", letterSpacing: "0.15em" }}
+                style={{ maxWidth: "200px", letterSpacing: "0.12em", fontSize: "1rem" }}
               />
               <button
                 type="submit"
