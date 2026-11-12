@@ -30,8 +30,12 @@ const DEFAULTS = {
   timezone: "Asia/Kolkata",
 };
 
-function statusLabel(status) {
-  if (status === "draft_ready") return "Draft ready — email sent";
+function statusLabel(status, approvalId) {
+  if (status === "draft_ready") {
+    return approvalId
+      ? "Draft ready — approval email sent"
+      : "Draft ready — no email (add manager email in Setup)";
+  }
   if (status === "processing") return "AI writing…";
   if (status === "failed") return "Failed";
   if (status === "queued") return "Waiting in queue";
@@ -384,7 +388,7 @@ export default function Blog20AutomationsPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
                     <strong>{t.topic}</strong>
-                    <span className={statusClass(t.status)}>{statusLabel(t.status)}</span>
+                    <span className={statusClass(t.status)}>{statusLabel(t.status, t.approval_id)}</span>
                   </div>
                   {t.generated_draft_id ? (
                     <p style={{ margin: "0.25rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>

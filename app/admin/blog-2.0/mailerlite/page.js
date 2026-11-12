@@ -349,10 +349,16 @@ export default function Blog20MailerLitePage() {
               type="checkbox"
               checked={form.mailerlite_bot_auto_push}
               onChange={(e) => setForm({ ...form, mailerlite_bot_auto_push: e.target.checked })}
-              disabled={!canEditModule}
+              disabled={!canEditModule || Boolean(form.approval_emails?.trim())}
             />
-            Push immediately after AI save (skip approval email)
+            Push immediately after AI save (only if no manager email above)
           </label>
+          {form.approval_emails?.trim() ? (
+            <p className="b20-setup-hint" style={{ marginTop: 8 }}>
+              Manager email is set — drafts get <strong>Preview / Save as draft</strong> by email;
+              the bot runs after they click Yes (auto-push is ignored).
+            </p>
+          ) : null}
           <div className="b20-setup-row">
             <label>
               Site ID
