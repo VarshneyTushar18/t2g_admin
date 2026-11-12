@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import * as api from "../services/blog20Service";
@@ -51,6 +52,7 @@ export default function Blog20MailerLitePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [testGroups, setTestGroups] = useState([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const canEditModule = canEdit("blog_2_0") && !isReadOnly("blog_2_0");
 
@@ -264,9 +266,15 @@ export default function Blog20MailerLitePage() {
 
   return (
     <div className="b20-page">
-      <div className="b20-hero">
-        <h1>MailerLite</h1>
-        <p>Newsletter campaigns for Blog-2.0 — separate from the main Tech2Globe blog.</p>
+      <div className="b20-hero b20-hero-compact">
+        <h1>Bright CRM setup</h1>
+        <p>
+          Who gets review emails, and how drafts reach MailerLite. Weekly schedule lives on{" "}
+          <Link href="/admin/blog-2.0/automations" className="b20-hero-link">
+            Automations
+          </Link>
+          .
+        </p>
       </div>
 
       <MailerLiteSessionAlert
@@ -295,228 +303,98 @@ export default function Blog20MailerLitePage() {
       {error && <div className="b20-alert err">{error}</div>}
       {success && <div className="b20-alert ok">{success}</div>}
 
-      <form className="b20-card b20-form" onSubmit={handleSave}>
-        <h2>Project</h2>
-        <label>Project name</label>
-        <input
-          value={form.project_name}
-          onChange={(e) => setForm({ ...form, project_name: e.target.value })}
-          disabled={!canEditModule}
-        />
-        <label>Client website URL</label>
-        <input
-          value={form.client_site_url}
-          onChange={(e) => setForm({ ...form, client_site_url: e.target.value })}
-          placeholder="https://preview.mailerlite.io/..."
-          disabled={!canEditModule}
-        />
-        <label>Client blog URL</label>
-        <input
-          value={form.client_blog_url}
-          onChange={(e) => setForm({ ...form, client_blog_url: e.target.value })}
-          disabled={!canEditModule}
-        />
-        <label>Website draft mode</label>
-        <select
-          value={form.website_mode}
-          onChange={(e) => setForm({ ...form, website_mode: e.target.value })}
-          disabled={!canEditModule}
-        >
-          <option value="cms_draft">Our CMS — auto draft (recommended)</option>
-          <option value="mailerlite_manual">MailerLite site — manual paste pack</option>
-        </select>
-        <label>Newsletter content</label>
-        <select
-          value={form.newsletter_mode}
-          onChange={(e) => setForm({ ...form, newsletter_mode: e.target.value })}
-          disabled={!canEditModule}
-        >
-          <option value="full_html">Full article in email</option>
-          <option value="excerpt_link">Excerpt + Read more link</option>
-        </select>
-
-        <h2 style={{ marginTop: "1rem" }}>Browser bot (website blog)</h2>
-        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 1rem" }}>
-          Logs into MailerLite like a human and creates blog drafts on the Bright CRM site.
-          Use a dedicated MailerLite login with <strong>2FA disabled</strong>.
-        </p>
-        <label>
-          <input
-            type="checkbox"
-            checked={form.mailerlite_bot_enabled}
-            onChange={(e) =>
-              setForm({ ...form, mailerlite_bot_enabled: e.target.checked })
-            }
-            disabled={!canEditModule}
-          />
-          Enable browser bot
-        </label>
-        <label style={{ display: "block", marginTop: "0.5rem" }}>
-          <input
-            type="checkbox"
-            checked={form.mailerlite_bot_auto_push}
-            onChange={(e) =>
-              setForm({ ...form, mailerlite_bot_auto_push: e.target.checked })
-            }
-            disabled={!canEditModule}
-          />
-          Auto-push to MailerLite after agent saves draft
-        </label>
-        <label style={{ display: "block", marginTop: "0.5rem" }}>
-          <input
-            type="checkbox"
-            checked={form.mailerlite_allow_direct_publish}
-            onChange={(e) =>
-              setForm({ ...form, mailerlite_allow_direct_publish: e.target.checked })
-            }
-            disabled={!canEditModule}
-          />
-          Show &quot;Publish live&quot; option in approval emails
-        </label>
-        <p style={{ fontSize: "0.82rem", color: "#64748b", margin: "0.25rem 0 1rem" }}>
-          Approvers can choose Save as draft or Publish live on the client website.
-        </p>
-        <label>MailerLite site ID</label>
-        <input
-          value={form.mailerlite_site_id}
-          onChange={(e) => setForm({ ...form, mailerlite_site_id: e.target.value })}
-          disabled={!canEditModule}
-        />
-        {meta?.mailerlite_login_email_hint && (
-          <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 0.75rem" }}>
-            Saved bot login: <strong>{meta.mailerlite_login_email_hint}</strong> — leave email
-            blank to keep, or enter a new email to replace
+      <form className="b20-setup-stack" onSubmit={handleSave}>
+        <section className="b20-card b20-form b20-setup-card">
+          <h2>1. Who approves new blogs?</h2>
+          <p className="b20-setup-hint">
+            After AI writes a post, these inboxes get <strong>Preview</strong> and{" "}
+            <strong>Save as draft</strong>. Yes runs the MailerLite bot.
           </p>
-        )}
-        <label>Bot login email</label>
-        <input
-          type="email"
-          value={form.mailerlite_login_email}
-          onChange={(e) => setForm({ ...form, mailerlite_login_email: e.target.value })}
-          placeholder={
-            meta?.mailerlite_login_email_hint
-              ? `Saved: ${meta.mailerlite_login_email_hint}`
-              : "bot@yourcompany.com"
-          }
-          autoComplete="off"
-          disabled={!canEditModule}
-        />
-        <label>Bot login password</label>
-        <input
-          type="password"
-          value={form.mailerlite_login_password}
-          onChange={(e) =>
-            setForm({ ...form, mailerlite_login_password: e.target.value })
-          }
-          placeholder={meta?.has_mailerlite_login ? "Saved — leave blank to keep" : ""}
-          autoComplete="new-password"
-          disabled={!canEditModule}
-        />
+          <label>Manager email(s)</label>
+          <input
+            value={form.approval_emails}
+            onChange={(e) => setForm({ ...form, approval_emails: e.target.value })}
+            disabled={!canEditModule}
+            placeholder="name@company.com, teammate@company.com"
+          />
+          <label className="b20-check-line">
+            <input
+              type="checkbox"
+              checked={form.mailerlite_allow_direct_publish}
+              onChange={(e) =>
+                setForm({ ...form, mailerlite_allow_direct_publish: e.target.checked })
+              }
+              disabled={!canEditModule}
+            />
+            Also show <strong>Publish live</strong> in the email (optional)
+          </label>
+        </section>
 
-        <h2 style={{ marginTop: "1rem" }}>MailerLite API (newsletter)</h2>
-        {meta?.has_mailerlite_api_key && (
-          <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 0.75rem" }}>
-            Saved key: {meta.mailerlite_api_key_hint || "••••"} — leave blank to keep
+        <section className="b20-card b20-form b20-setup-card">
+          <h2>2. Send drafts to the Bright CRM website</h2>
+          <p className="b20-setup-hint">
+            Server bot logs into MailerLite (use a login with <strong>2FA off</strong>).
           </p>
-        )}
-        <label>API token</label>
-        <input
-          type="password"
-          value={form.mailerlite_api_key}
-          onChange={(e) => setForm({ ...form, mailerlite_api_key: e.target.value })}
-          placeholder="Paste MailerLite API token"
-          disabled={!canEditModule}
-        />
-        <label>From email (verified in MailerLite)</label>
-        <input
-          value={form.mailerlite_from_email}
-          onChange={(e) => setForm({ ...form, mailerlite_from_email: e.target.value })}
-          disabled={!canEditModule}
-        />
-        <label>From name</label>
-        <input
-          value={form.mailerlite_from_name}
-          onChange={(e) => setForm({ ...form, mailerlite_from_name: e.target.value })}
-          disabled={!canEditModule}
-        />
-        <label>Subscriber group ID</label>
-        <input
-          value={form.mailerlite_group_id}
-          onChange={(e) => setForm({ ...form, mailerlite_group_id: e.target.value })}
-          disabled={!canEditModule}
-        />
-
-        <h2 style={{ marginTop: "1rem" }}>Schedule (confirmed)</h2>
-        <label>Timezone</label>
-        <input value={form.timezone} disabled />
-        <label>AI writes new post</label>
-        <input
-          value={`${form.automation_frequency} — Monday ${form.automation_run_time} IST`}
-          disabled
-        />
-        <label>Newsletter send</label>
-        <select
-          value={form.newsletter_send_timing}
-          onChange={(e) => setForm({ ...form, newsletter_send_timing: e.target.value })}
-          disabled={!canEditModule}
-        >
-          <option value="scheduled">Scheduled (Monday 12:00 IST)</option>
-          <option value="on_approve">Immediately after approval</option>
-        </select>
-        <label>Newsletter format</label>
-        <select
-          value={form.newsletter_mode}
-          onChange={(e) => setForm({ ...form, newsletter_mode: e.target.value })}
-          disabled={!canEditModule}
-        >
-          <option value="full_html">Full article in email</option>
-          <option value="excerpt_link">Excerpt + Read more link</option>
-        </select>
-
-        <h2 style={{ marginTop: "1rem" }}>Review &amp; notify</h2>
-        <label>Approval emails (comma-separated)</label>
-        <input
-          value={form.approval_emails}
-          onChange={(e) => setForm({ ...form, approval_emails: e.target.value })}
-          disabled={!canEditModule}
-          placeholder="you@company.com, teammate@company.com"
-        />
-        <p style={{ margin: "0.35rem 0 0.75rem", fontSize: "0.85rem", color: "#64748b" }}>
-          When the agent saves a draft, these addresses get Preview + Yes/No links. Yes starts the MailerLite bot.
-        </p>
-        <label>Teams webhook URL (optional)</label>
-        <input
-          value={form.teams_webhook_url}
-          onChange={(e) => setForm({ ...form, teams_webhook_url: e.target.value })}
-          disabled={!canEditModule}
-        />
-        <label>Notes</label>
-        <textarea
-          rows={3}
-          value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          disabled={!canEditModule}
-        />
-
-        <div className="b20-actions">
-          <button type="submit" className="b20-btn b20-btn-primary" disabled={!canEditModule || saving}>
-            {saving ? "Saving…" : "Save"}
-          </button>
+          <label className="b20-check-line">
+            <input
+              type="checkbox"
+              checked={form.mailerlite_bot_enabled}
+              onChange={(e) => setForm({ ...form, mailerlite_bot_enabled: e.target.checked })}
+              disabled={!canEditModule}
+            />
+            Enable MailerLite bot
+          </label>
+          <label className="b20-check-line">
+            <input
+              type="checkbox"
+              checked={form.mailerlite_bot_auto_push}
+              onChange={(e) => setForm({ ...form, mailerlite_bot_auto_push: e.target.checked })}
+              disabled={!canEditModule}
+            />
+            Push immediately after AI save (skip approval email)
+          </label>
+          <div className="b20-setup-row">
+            <label>
+              Site ID
+              <input
+                value={form.mailerlite_site_id}
+                onChange={(e) => setForm({ ...form, mailerlite_site_id: e.target.value })}
+                disabled={!canEditModule}
+              />
+            </label>
+            <label>
+              Bot login email
+              <input
+                type="email"
+                value={form.mailerlite_login_email}
+                onChange={(e) => setForm({ ...form, mailerlite_login_email: e.target.value })}
+                placeholder={meta?.mailerlite_login_email_hint || "bot@company.com"}
+                autoComplete="off"
+                disabled={!canEditModule}
+              />
+            </label>
+          </div>
+          <label>Bot password {meta?.has_mailerlite_login ? "(saved — leave blank to keep)" : ""}</label>
+          <input
+            type="password"
+            value={form.mailerlite_login_password}
+            onChange={(e) => setForm({ ...form, mailerlite_login_password: e.target.value })}
+            autoComplete="new-password"
+            disabled={!canEditModule}
+          />
           <button
             type="button"
-            className="b20-btn b20-btn-secondary"
-            onClick={handleTest}
-            disabled={!canEditModule || testing}
-          >
-            {testing ? "Testing…" : "Test API"}
-          </button>
-          <button
-            type="button"
-            className="b20-btn b20-btn-secondary"
+            className="b20-btn b20-btn-secondary b20-setup-inline-btn"
             onClick={handleTestBot}
             disabled={!canEditModule || testingBot}
           >
-            {testingBot ? "Testing bot…" : "Test bot login"}
+            {testingBot ? "Testing…" : "Test bot login"}
+          </button>
+        </section>
+
+        <div className="b20-setup-bar">
+          <button type="submit" className="b20-btn b20-btn-primary" disabled={!canEditModule || saving}>
+            {saving ? "Saving…" : "Save"}
           </button>
           <button
             type="button"
@@ -524,9 +402,128 @@ export default function Blog20MailerLitePage() {
             onClick={handleTestApprovalEmail}
             disabled={!canEditModule || testingApproval}
           >
-            {testingApproval ? "Sending…" : "Test approval email"}
+            {testingApproval ? "Sending…" : "Send test approval email"}
           </button>
         </div>
+
+        <button
+          type="button"
+          className="b20-advanced-toggle"
+          onClick={() => setShowAdvanced((v) => !v)}
+        >
+          {showAdvanced ? "Hide technical settings" : "Technical settings (URLs, newsletter API, notes)"}
+        </button>
+
+        {showAdvanced ? (
+          <section className="b20-card b20-form b20-setup-card b20-setup-advanced">
+            <h2>Client site (for AI tone)</h2>
+            <label>Project name</label>
+            <input
+              value={form.project_name}
+              onChange={(e) => setForm({ ...form, project_name: e.target.value })}
+              disabled={!canEditModule}
+            />
+            <label>Bright CRM website URL</label>
+            <input
+              value={form.client_site_url}
+              onChange={(e) => setForm({ ...form, client_site_url: e.target.value })}
+              disabled={!canEditModule}
+            />
+            <label>Blog URL</label>
+            <input
+              value={form.client_blog_url}
+              onChange={(e) => setForm({ ...form, client_blog_url: e.target.value })}
+              disabled={!canEditModule}
+            />
+            <label>Internal notes</label>
+            <textarea
+              rows={2}
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              disabled={!canEditModule}
+            />
+
+            <h2 style={{ marginTop: "1.25rem" }}>Newsletter (coming soon)</h2>
+            <p className="b20-setup-hint">Monday campaigns — not required for blog drafts on the website.</p>
+            {meta?.has_mailerlite_api_key ? (
+              <p className="b20-setup-hint">API key saved ({meta.mailerlite_api_key_hint || "••••"}).</p>
+            ) : null}
+            <label>API token</label>
+            <input
+              type="password"
+              value={form.mailerlite_api_key}
+              onChange={(e) => setForm({ ...form, mailerlite_api_key: e.target.value })}
+              placeholder="Paste only when changing"
+              disabled={!canEditModule}
+            />
+            <div className="b20-setup-row">
+              <label>
+                From email
+                <input
+                  value={form.mailerlite_from_email}
+                  onChange={(e) => setForm({ ...form, mailerlite_from_email: e.target.value })}
+                  disabled={!canEditModule}
+                />
+              </label>
+              <label>
+                From name
+                <input
+                  value={form.mailerlite_from_name}
+                  onChange={(e) => setForm({ ...form, mailerlite_from_name: e.target.value })}
+                  disabled={!canEditModule}
+                />
+              </label>
+            </div>
+            <label>Subscriber group ID</label>
+            <input
+              value={form.mailerlite_group_id}
+              onChange={(e) => setForm({ ...form, mailerlite_group_id: e.target.value })}
+              disabled={!canEditModule}
+            />
+            <label>When to send newsletter</label>
+            <select
+              value={form.newsletter_send_timing}
+              onChange={(e) => setForm({ ...form, newsletter_send_timing: e.target.value })}
+              disabled={!canEditModule}
+            >
+              <option value="scheduled">Scheduled (Monday 12:00 IST)</option>
+              <option value="on_approve">Right after approval</option>
+            </select>
+            <label>Email body style</label>
+            <select
+              value={form.newsletter_mode}
+              onChange={(e) => setForm({ ...form, newsletter_mode: e.target.value })}
+              disabled={!canEditModule}
+            >
+              <option value="full_html">Full article</option>
+              <option value="excerpt_link">Excerpt + link</option>
+            </select>
+            <label>Website paste mode</label>
+            <select
+              value={form.website_mode}
+              onChange={(e) => setForm({ ...form, website_mode: e.target.value })}
+              disabled={!canEditModule}
+            >
+              <option value="mailerlite_manual">MailerLite site (bot)</option>
+              <option value="cms_draft">CMS auto draft</option>
+            </select>
+            <label>Microsoft Teams webhook (optional)</label>
+            <input
+              value={form.teams_webhook_url}
+              onChange={(e) => setForm({ ...form, teams_webhook_url: e.target.value })}
+              placeholder="https://… (not the MailerLite site ID)"
+              disabled={!canEditModule}
+            />
+            <button
+              type="button"
+              className="b20-btn b20-btn-secondary b20-setup-inline-btn"
+              onClick={handleTest}
+              disabled={!canEditModule || testing}
+            >
+              {testing ? "Testing…" : "Test newsletter API"}
+            </button>
+          </section>
+        ) : null}
       </form>
 
       {testGroups.length > 0 && (
