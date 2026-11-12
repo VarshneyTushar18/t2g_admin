@@ -260,20 +260,24 @@ export default function AgentAutomationsPage() {
     setError("");
   };
 
-  const saveApprovalEmails = async () => {
-    const emails = normalizeEmails(approvalEmails);
+  const persistApprovalEmails = async (emailsInput) => {
+    const emails = normalizeEmails(emailsInput ?? approvalEmails);
     if (!emails.length) {
-      setError("Add at least one email, then click Save emails");
-      return;
+      throw new Error("Add at least one approval email first");
     }
+    const next = await api.saveSettings(buildSettingsPayload(emails));
+    const saved = normalizeEmails(next.approval_emails || emails);
+    setApprovalEmails(saved);
+    setSavedApprovalEmails(saved);
+    return saved;
+  };
+
+  const saveApprovalEmails = async () => {
     setSavingEmails(true);
     setError("");
     setSuccess("");
     try {
-      const next = await api.saveSettings(buildSettingsPayload(emails));
-      const saved = normalizeEmails(next.approval_emails || emails);
-      setApprovalEmails(saved);
-      setSavedApprovalEmails(saved);
+      const saved = await persistApprovalEmails();
       setSuccess(`Saved approval emails: ${saved.join(", ")}`);
     } catch (err) {
       setError(err.message || "Failed to save emails");
@@ -323,13 +327,10 @@ export default function AgentAutomationsPage() {
     setTestingEmail(true);
     setError("");
     setSuccess("");
-    const emails = normalizeEmails(approvalEmails);
-    if (!emails.length) {
-      setError("Add at least one email first");
-      setTestingEmail(false);
-      return;
-    }
     try {
+      const emails = emailsDirty
+        ? await persistApprovalEmails()
+        : normalizeEmails(approvalEmails);
       const result = await api.sendTestEmail(emails);
       setSuccess(
         `Test sent to ${(result.sentTo || emails).join(", ")}. Open it and try Preview / Yes / No.`,
@@ -484,12 +485,6 @@ export default function AgentAutomationsPage() {
       setRunningNow(false);
       return;
     }
-    if (needsEmail && emailsDirty) {
-      setError("Click Save emails before Write 1 now.");
-      setRunningNow(false);
-      return;
-    }
-
     const queuedCount = topics.filter((t) => t.status === "queued").length;
     const autoMode = settings.topic_source === "auto_trending";
     if (!autoMode && queuedCount === 0) {
@@ -506,7 +501,7 @@ export default function AgentAutomationsPage() {
           ? "Researching topic and writing… usually 2–5 minutes. Keep this tab open."
           : "AI is writing… usually 2–5 minutes. Keep this tab open.",
       );
-      await api.saveSettings(buildSettingsPayload(emails));
+      const saved = await persistApprovalEmails(emails);
       const { result } = await api.runNow({ bootstrap_trending: autoMode });
       await load();
       if (result?.autoTrendingError) {
@@ -538,8 +533,17 @@ export default function AgentAutomationsPage() {
           `Trending: ${picked.join(" · ")}. ${ok.length ? `Wrote ${ok.length} post(s)${dur}. Check email.` : "See topic list."}`,
         );
       } else if (ok.length) {
+        const emailed =
+          settings.mode === "pending_email" && ok.some((r) => r.approvalId);
+        const emailHint = emailed
+          ? ` Approval email sent to ${saved.join(", ")} — check inbox/spam.`
+          : settings.mode === "draft_only"
+            ? " No email (draft-only mode)."
+            : settings.mode === "auto_publish"
+              ? " Notify email sent (auto-publish mode)."
+              : "";
         setSuccess(
-          `Wrote ${ok.length} post(s)${dur}. Check email or the topic list below.`,
+          `Wrote ${ok.length} post(s)${dur}.${emailHint || " See topic list below."}`,
         );
       } else {
         setError(
