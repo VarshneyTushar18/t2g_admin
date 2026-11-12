@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import * as agentApi from "../services/blog20Service";
+import Blog20RevealText from "../components/Blog20RevealText";
+import Blog20ThinkingDots from "../components/Blog20ThinkingDots";
 import "../blog-2.0.css";
 
 export default function Blog20AgentPage() {
@@ -18,6 +20,7 @@ export default function Blog20AgentPage() {
   const [error, setError] = useState("");
   const [agentReady, setAgentReady] = useState(null);
   const [deletingThreadId, setDeletingThreadId] = useState(null);
+  const [revealMessageId, setRevealMessageId] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -60,6 +63,7 @@ export default function Blog20AgentPage() {
 
   const selectThread = useCallback(async (threadId) => {
     setActiveThreadId(threadId);
+    setRevealMessageId(null);
     setError("");
     try {
       const msgs = await agentApi.getMessages(threadId);
@@ -73,6 +77,7 @@ export default function Blog20AgentPage() {
     setError("");
     setActiveThreadId(null);
     setMessages([]);
+    setRevealMessageId(null);
     setInput("");
     inputRef.current?.focus();
   };
@@ -118,6 +123,10 @@ export default function Blog20AgentPage() {
       await agentApi.sendMessage(threadId, text);
       const msgs = await agentApi.getMessages(threadId);
       setMessages(msgs);
+      const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
+      if (lastAssistant?.id) {
+        setRevealMessageId(lastAssistant.id);
+      }
       await refreshThreads();
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (err) {
@@ -137,7 +146,14 @@ export default function Blog20AgentPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, sending]);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [input]);
 
   if (authLoading || loading) {
     return <div className="b20-page"><p>Loading Blog Agent…</p></div>;
@@ -238,33 +254,65 @@ export default function Blog20AgentPage() {
             )}
             {messages.map((m) => (
               <div key={m.id} className={`b20-msg ${m.role}`}>
-                {m.content}
+                {m.role === "assistant" ? (
+                  <Blog20RevealText
+                    text={m.content || ""}
+                    animate={m.id === revealMessageId}
+                    onProgress={() =>
+                      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+                    }
+                  />
+                ) : (
+                  m.content
+                )}
               </div>
             ))}
+            {sending && (
+              <div className="b20-msg assistant b20-msg-pending">
+                <Blog20ThinkingDots />
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
-          <div className="b20-chat-input">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Describe the blog you want…"
-              rows={2}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="b20-btn b20-btn-primary"
-              onClick={send}
-              disabled={sending || !input.trim()}
-            >
-              {sending ? "…" : "Send"}
-            </button>
+          <div className="b20-composer-shell">
+            <div className="b20-composer">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Describe the blog you want…"
+                rows={1}
+                aria-label="Message Blog Agent"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="b20-composer-send"
+                onClick={send}
+                disabled={sending || !input.trim()}
+                aria-label={sending ? "Sending" : "Send message"}
+              >
+                {sending ? (
+                  <span className="b20-composer-spinner" aria-hidden />
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M12 19V5M12 5L5 12M12 5L19 12"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </button>
+            </div>
+            <p className="b20-composer-hint">Enter to send · Shift+Enter for new line</p>
           </div>
         </div>
       </div>
