@@ -795,3 +795,116 @@
 .b20-setup-inline-btn {
   margin-top: 0.75rem;
 }
+
+.b20-schedule-block {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.b20-schedule-topics {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.b20-field-label {
+  display: block;
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.b20-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.b20-weekdays .b20-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+.b20-radio-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.b20-radio-card {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 0 !important;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  font-weight: 400 !important;
+  color: #0f172a;
+}
+
+.b20-radio-card:has(input:checked) {
+  border-color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.b20-radio-card input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  width: auto !important;
+  margin-bottom: 0 !important;
+}
+
+.b20-radio-card > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  line-height: 1.45;
+  font-size: 0.92rem;
+}
+
+.b20-radio-desc {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: #64748b;
+}
+
+.b20-field {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.b20-field-niche {
+  max-width: 100%;
+}
+
+.b20-textarea,
+.b20-card textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 4.5rem;
+}
+
+.b20-schedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}

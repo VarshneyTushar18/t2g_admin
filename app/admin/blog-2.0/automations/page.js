@@ -249,9 +249,9 @@ export default function Blog20AutomationsPage() {
         </div>
 
         {showWeekdays ? (
-          <div style={{ marginTop: "1rem" }}>
-            <p style={{ margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.9rem" }}>Weekdays</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+          <div className="b20-schedule-block">
+            <p className="b20-field-label">Weekdays</p>
+            <div className="b20-weekdays">
               {DAYS.map((d) => {
                 const on = (form.automation_run_days || []).includes(d.id);
                 return (
@@ -260,7 +260,6 @@ export default function Blog20AutomationsPage() {
                     type="button"
                     disabled={!canEditBlog20}
                     className={on ? "b20-btn b20-btn-primary" : "b20-btn b20-btn-secondary"}
-                    style={{ padding: "0.35rem 0.65rem", fontSize: "0.85rem" }}
                     onClick={() => toggleDay(d.id)}
                   >
                     {d.label}
@@ -271,53 +270,68 @@ export default function Blog20AutomationsPage() {
           </div>
         ) : null}
 
-        <div style={{ marginTop: "1.25rem" }}>
-          <p style={{ margin: "0 0 0.5rem", fontWeight: 600 }}>Topic source</p>
-          <label style={{ display: "block", marginBottom: "0.5rem" }}>
-            <input
-              type="radio"
-              name="topicSource"
-              checked={form.automation_topic_source === "auto_research"}
-              disabled={!canEditBlog20}
-              onChange={() => setForm((p) => ({ ...p, automation_topic_source: "auto_research" }))}
-            />{" "}
-            Auto research (recommended) — AI finds fresh construction CRM angles each run
-          </label>
-          <label style={{ display: "block" }}>
-            <input
-              type="radio"
-              name="topicSource"
-              checked={form.automation_topic_source === "manual"}
-              disabled={!canEditBlog20}
-              onChange={() => setForm((p) => ({ ...p, automation_topic_source: "manual" }))}
-            />{" "}
-            Manual queue — you add topics below
-          </label>
+        <div className="b20-schedule-block b20-schedule-topics">
+          <p className="b20-field-label">How topics are chosen</p>
+          <div className="b20-radio-stack" role="radiogroup" aria-label="Topic source">
+            <label className="b20-radio-card">
+              <input
+                type="radio"
+                name="topicSource"
+                checked={form.automation_topic_source === "auto_research"}
+                disabled={!canEditBlog20}
+                onChange={() => setForm((p) => ({ ...p, automation_topic_source: "auto_research" }))}
+              />
+              <span>
+                <strong>Auto research</strong> (recommended)
+                <span className="b20-radio-desc">
+                  AI picks a fresh construction CRM angle each run — no manual list needed.
+                </span>
+              </span>
+            </label>
+            <label className="b20-radio-card">
+              <input
+                type="radio"
+                name="topicSource"
+                checked={form.automation_topic_source === "manual"}
+                disabled={!canEditBlog20}
+                onChange={() => setForm((p) => ({ ...p, automation_topic_source: "manual" }))}
+              />
+              <span>
+                <strong>Manual queue</strong>
+                <span className="b20-radio-desc">You add topics in the list below.</span>
+              </span>
+            </label>
+          </div>
+
+          {form.automation_topic_source === "auto_research" ? (
+            <div className="b20-field b20-field-niche">
+              <label className="b20-field-label" htmlFor="b20-research-niche">
+                Research niche
+              </label>
+              <textarea
+                id="b20-research-niche"
+                className="b20-textarea"
+                rows={3}
+                value={form.automation_auto_niche}
+                disabled={!canEditBlog20}
+                onChange={(e) => setForm((p) => ({ ...p, automation_auto_niche: e.target.value }))}
+                placeholder="e.g. construction CRM, bids, jobsite efficiency, Bright CRM"
+              />
+            </div>
+          ) : null}
         </div>
 
-        {form.automation_topic_source === "auto_research" ? (
-          <label style={{ display: "block", marginTop: "1rem" }}>
-            Research niche
-            <textarea
-              rows={3}
-              value={form.automation_auto_niche}
-              disabled={!canEditBlog20}
-              onChange={(e) => setForm((p) => ({ ...p, automation_auto_niche: e.target.value }))}
-            />
-          </label>
-        ) : null}
-
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1.25rem" }}>
+        <div className="b20-schedule-actions">
           <button type="button" className="b20-btn b20-btn-primary" disabled={saving || !canEditBlog20} onClick={save}>
             {saving ? "Saving…" : "Save schedule"}
           </button>
           <button
             type="button"
-            className="b20-btn"
+            className="b20-btn b20-btn-secondary"
             disabled={running || !canEditBlog20}
             onClick={() => runNow(form.automation_topic_source === "auto_research")}
           >
-            {running ? "Running…" : "Run now"}
+            {running ? "Writing… (2–5 min)" : "Run now"}
           </button>
         </div>
       </div>
