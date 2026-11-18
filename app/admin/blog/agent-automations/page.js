@@ -1664,7 +1664,17 @@ export default function AgentAutomationsPage() {
                           <div style={{ color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.4 }}>
                             Topic
                           </div>
-                          <strong>{t.topic}</strong>
+                          {t.created_by === "auto-trending" &&
+                          (t.source_niche || settings.auto_niche) ? (
+                            <>
+                              <strong>{t.source_niche || settings.auto_niche}</strong>
+                              <div style={{ color: "#475569", marginTop: 4, fontSize: 12 }}>
+                                <span style={{ color: "#64748b" }}>AI angle:</span> {t.topic}
+                              </div>
+                            </>
+                          ) : (
+                            <strong>{t.topic}</strong>
+                          )}
                           {t.author_name ? (
                             <div style={{ color: "#64748b", marginTop: 2 }}>
                               {t.author_name}
