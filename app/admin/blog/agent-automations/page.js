@@ -92,6 +92,19 @@ function toInputDateTime(iso) {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
+function formatDisplayDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function statusBadgeClass(status) {
   if (status === "draft_ready") return "aa-badge ok";
   if (status === "processing") return "aa-badge info";
@@ -1637,6 +1650,7 @@ export default function AgentAutomationsPage() {
                   <thead>
                     <tr>
                       <th>Topic</th>
+                      <th>Date</th>
                       <th>Status</th>
                       <th>Result</th>
                       <th></th>
@@ -1647,6 +1661,9 @@ export default function AgentAutomationsPage() {
                       <Fragment key={t.id}>
                       <tr>
                         <td>
+                          <div style={{ color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                            Topic
+                          </div>
                           <strong>{t.topic}</strong>
                           {t.author_name ? (
                             <div style={{ color: "#64748b", marginTop: 2 }}>
@@ -1659,6 +1676,20 @@ export default function AgentAutomationsPage() {
                             </div>
                           ) : null}
                         </td>
+                        <td style={{ fontSize: 12, color: "#475569", whiteSpace: "nowrap" }}>
+                          {t.created_at && <div>Added: {formatDisplayDate(t.created_at)}</div>}
+                          {t.last_processed_at && (
+                            <div style={{ marginTop: 2 }}>
+                              Written: {formatDisplayDate(t.last_processed_at)}
+                            </div>
+                          )}
+                          {t.status === "queued" && t.scheduled_for && (
+                            <div style={{ marginTop: 2 }}>
+                              Scheduled: {formatDisplayDate(t.scheduled_for)}
+                            </div>
+                          )}
+                          {!t.created_at && !t.last_processed_at && "—"}
+                        </td>
                         <td>
                           <span className={statusBadgeClass(t.status)}>
                             {friendlyStatus(t.status)}
@@ -1667,6 +1698,9 @@ export default function AgentAutomationsPage() {
                         <td>
                           {t.generated_post_id ? (
                             <>
+                              <div style={{ color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                                Blog title
+                              </div>
                               <Link href={`/admin/blog/edit/${t.generated_post_id}`}>
                                 {t.generated_title || `Post #${t.generated_post_id}`}
                               </Link>
@@ -1724,7 +1758,7 @@ export default function AgentAutomationsPage() {
                       </tr>
                       {openReportId === t.id && t.research_report && (
                         <tr>
-                          <td colSpan="4">
+                          <td colSpan="5">
                             <SeoResearchReport report={t.research_report} />
                           </td>
                         </tr>
@@ -1733,7 +1767,7 @@ export default function AgentAutomationsPage() {
                     ))}
                     {!topics.length && !loading && (
                       <tr>
-                        <td colSpan="4">
+                        <td colSpan="5">
                           <div className="aa-empty">
                             {settings.topic_source === "auto_trending"
                               ? "No runs yet. Save settings, turn automation on, or click Write 1 now."
