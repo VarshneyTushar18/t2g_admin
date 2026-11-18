@@ -1,11 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
 import ReadOnlyBanner from "../../components/ReadOnlyBanner";
 import * as api from "../services/agentAutomationsService";
 import { getCategories } from "../services/blogService";
+import CategoryMultiSelect from "../components/CategoryMultiSelect";
+import SeoResearchReport from "../components/SeoResearchReport";
+
+const SECONDS_PER_HOUR = 3600;
+const MAX_STAGGER_HOURS = 168;
+
+function staggerSecondsToHours(seconds) {
+  const h = Number(seconds ?? 0) / SECONDS_PER_HOUR;
+  if (!Number.isFinite(h)) return 0;
+  return Math.round(h * 100) / 100;
+}
+
+function hoursToStaggerSeconds(hours) {
+  const h = Math.max(0, Math.min(Number(hours) || 0, MAX_STAGGER_HOURS));
+  return Math.round(h * SECONDS_PER_HOUR);
+}
 
 const DAYS = [
   { id: 0, label: "Sun" },
@@ -25,7 +41,7 @@ const DEFAULTS = {
   run_time: "10:00",
   run_days: [1, 2, 3, 4, 5],
   posts_per_run: 1,
-  posts_stagger_seconds: 120,
+  posts_stagger_seconds: SECONDS_PER_HOUR,
   mode: "pending_email",
   topic_source: "manual",
   auto_niche:
@@ -137,6 +153,7 @@ export default function AgentAutomationsPage() {
   });
   const [categories, setCategories] = useState([]);
   const [editingTopicId, setEditingTopicId] = useState(null);
+  const [openReportId, setOpenReportId] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [agentMemory, setAgentMemory] = useState("");
   const [memorySaving, setMemorySaving] = useState(false);
@@ -380,15 +397,6 @@ export default function AgentAutomationsPage() {
     }
   };
 
-  const toggleCategory = (formSetter, id) => {
-    formSetter((p) => {
-      const set = new Set(p.category_ids || []);
-      if (set.has(id)) set.delete(id);
-      else set.add(id);
-      return { ...p, category_ids: [...set] };
-    });
-  };
-
   const startEditTopic = (t) => {
     setEditingTopicId(t.id);
     setEditForm({
@@ -560,19 +568,6 @@ export default function AgentAutomationsPage() {
     }
   };
 
-  const toggleAutoCategory = (id) => {
-    setSettings((prev) => {
-      const ids = prev.auto_default_category_ids || [];
-      const exists = ids.includes(id);
-      return {
-        ...prev,
-        auto_default_category_ids: exists
-          ? ids.filter((x) => x !== id)
-          : [...ids, id],
-      };
-    });
-  };
-
   if (authLoading || !canView("blog")) {
     return (
       <div className="aa-page">
@@ -691,6 +686,12 @@ export default function AgentAutomationsPage() {
           color: #334155;
         }
         .aa-field.full { grid-column: 1 / -1; }
+        .aa-field-hint {
+          font-size: 12px;
+          font-weight: 400;
+          color: #64748b;
+          line-height: 1.45;
+        }
         .aa-input,
         .aa-select,
         .aa-textarea {
@@ -1200,21 +1201,26 @@ export default function AgentAutomationsPage() {
                     </label>
                     {Number(settings.posts_per_run) > 1 && (
                       <label className="aa-field">
-                        Gap between blogs (seconds)
+                        Gap between blogs (hours)
                         <input
                           className="aa-input"
                           type="number"
                           min="0"
-                          max="900"
-                          value={settings.posts_stagger_seconds}
+                          max={MAX_STAGGER_HOURS}
+                          step="0.25"
+                          value={staggerSecondsToHours(settings.posts_stagger_seconds)}
                           onChange={(e) =>
                             setSettings((prev) => ({
                               ...prev,
-                              posts_stagger_seconds: Number(e.target.value || 0),
+                              posts_stagger_seconds: hoursToStaggerSeconds(e.target.value),
                             }))
                           }
                           disabled={!canEditBlog}
                         />
+                        <span className="aa-field-hint">
+                          Wait time between posts when more than one runs the same day (e.g.{" "}
+                          <strong>2</strong> = two hours apart).
+                        </span>
                       </label>
                     )}
                     <div className="aa-field full">
@@ -1373,36 +1379,38 @@ export default function AgentAutomationsPage() {
                   {categories.length > 0 && (
                     <div className="aa-field full">
                       <span>Default categories for auto topics</span>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 8,
-                          marginTop: 8,
-                        }}
-                      >
-                        {categories.map((c) => (
-                          <label key={c.id} style={{ fontSize: 13 }}>
-                            <input
-                              type="checkbox"
-                              disabled={!canEditBlog}
-                              checked={(settings.auto_default_category_ids || []).includes(
-                                c.id,
-                              )}
-                              onChange={() => toggleAutoCategory(c.id)}
-                            />{" "}
-                            {c.name}
-                          </label>
-                        ))}
-                      </div>
+                      <CategoryMultiSelect
+                        categories={categories}
+                        selected={settings.auto_default_category_ids || []}
+                        disabled={!canEditBlog}
+                        onChange={(ids) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            auto_default_category_ids: ids,
+                          }))
+                        }
+                      />
                     </div>
                   )}
                   <p className="hint" style={{ margin: 0 }}>
                     Uses Google News + AI analysis (optional{" "}
-                    <code>SERPER_API_KEY</code> in backend .env for deeper web results). Saves
-                    with <strong>Save</strong> above. No manual topics needed — set{" "}
-                    <strong>How many each day</strong> to match emails you want.
+                    <code>SERPER_API_KEY</code> in backend .env for deeper web results). No
+                    manual topics needed — set <strong>How many each day</strong> to match emails
+                    you want.
                   </p>
+                  <div className="aa-field full">
+                    <button
+                      type="button"
+                      className="aa-btn primary"
+                      onClick={saveSettings}
+                      disabled={!canEditBlog || saving}
+                      style={{ alignSelf: "flex-start" }}
+                    >
+                      {saving ? "Saving…" : "Save"}
+                    </button>
+                    {error && <div className="aa-alert err">{error}</div>}
+                    {success && <div className="aa-alert ok">{success}</div>}
+                  </div>
                 </div>
               )}
             </section>
@@ -1454,7 +1462,7 @@ export default function AgentAutomationsPage() {
                   <h2>Topics to write</h2>
                   <p>
                     {settings.topic_source === "auto_trending"
-                      ? "Auto-added trending topics appear here before each run. You can still add extras manually."
+                      ? "Auto-added trending topics and their results appear here."
                       : "Type a topic, pick categories, then add. AI uses the queue in order."}
                   </p>
                 </div>
@@ -1469,6 +1477,7 @@ export default function AgentAutomationsPage() {
                 </p>
               )}
 
+              {settings.topic_source !== "auto_trending" && (
               <form className="aa-topic-form" onSubmit={addTopic}>
                 <label className="aa-field full">
                   Topic
@@ -1524,37 +1533,14 @@ export default function AgentAutomationsPage() {
                 {categories.length > 0 && (
                   <div className="aa-field full">
                     <span style={{ fontWeight: 700, fontSize: 13 }}>Categories</span>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 8,
-                        marginTop: 8,
-                        maxHeight: 120,
-                        overflowY: "auto",
-                      }}
-                    >
-                      {categories.map((c) => (
-                        <label
-                          key={c.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            fontSize: 13,
-                            cursor: canEditBlog ? "pointer" : "default",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            disabled={!canEditBlog}
-                            checked={(topicForm.category_ids || []).includes(c.id)}
-                            onChange={() => toggleCategory(setTopicForm, c.id)}
-                          />
-                          {c.name}
-                        </label>
-                      ))}
-                    </div>
+                    <CategoryMultiSelect
+                      categories={categories}
+                      selected={topicForm.category_ids || []}
+                      disabled={!canEditBlog}
+                      onChange={(ids) =>
+                        setTopicForm((p) => ({ ...p, category_ids: ids }))
+                      }
+                    />
                   </div>
                 )}
                 <div className="aa-field full">
@@ -1567,6 +1553,7 @@ export default function AgentAutomationsPage() {
                   </button>
                 </div>
               </form>
+              )}
 
               {editingTopicId && editForm && (
                 <form
@@ -1624,18 +1611,14 @@ export default function AgentAutomationsPage() {
                   {categories.length > 0 && (
                     <div className="aa-field full">
                       <span style={{ fontWeight: 700, fontSize: 13 }}>Categories</span>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                        {categories.map((c) => (
-                          <label key={c.id} style={{ fontSize: 13 }}>
-                            <input
-                              type="checkbox"
-                              checked={(editForm.category_ids || []).includes(c.id)}
-                              onChange={() => toggleCategory(setEditForm, c.id)}
-                            />{" "}
-                            {c.name}
-                          </label>
-                        ))}
-                      </div>
+                      <CategoryMultiSelect
+                        categories={categories}
+                        selected={editForm.category_ids || []}
+                        disabled={!canEditBlog}
+                        onChange={(ids) =>
+                          setEditForm((p) => ({ ...p, category_ids: ids }))
+                        }
+                      />
                     </div>
                   )}
                   <div className="aa-actions">
@@ -1661,7 +1644,8 @@ export default function AgentAutomationsPage() {
                   </thead>
                   <tbody>
                     {topics.map((t) => (
-                      <tr key={t.id}>
+                      <Fragment key={t.id}>
+                      <tr>
                         <td>
                           <strong>{t.topic}</strong>
                           {t.author_name ? (
@@ -1697,6 +1681,18 @@ export default function AgentAutomationsPage() {
                         </td>
                         <td>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {t.research_report && (
+                              <button
+                                type="button"
+                                className="aa-btn secondary"
+                                onClick={() =>
+                                  setOpenReportId((id) => (id === t.id ? null : t.id))
+                                }
+                                aria-expanded={openReportId === t.id}
+                              >
+                                {openReportId === t.id ? "Hide report" : "View report"}
+                              </button>
+                            )}
                             {canEditBlog && t.status === "failed" && (
                               <button
                                 type="button"
@@ -1726,6 +1722,14 @@ export default function AgentAutomationsPage() {
                           </div>
                         </td>
                       </tr>
+                      {openReportId === t.id && t.research_report && (
+                        <tr>
+                          <td colSpan="4">
+                            <SeoResearchReport report={t.research_report} />
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     ))}
                     {!topics.length && !loading && (
                       <tr>

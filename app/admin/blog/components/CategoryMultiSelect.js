@@ -6,6 +6,7 @@ export default function CategoryMultiSelect({
   categories = [],
   selected = [],
   onChange,
+  disabled = false,
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -38,6 +39,7 @@ export default function CategoryMultiSelect({
   }, [open]);
 
   const toggle = (id) => {
+    if (disabled) return;
     const num = Number(id);
     const next = selectedIds.has(num)
       ? [...selectedIds].filter((x) => x !== num)
@@ -71,7 +73,12 @@ export default function CategoryMultiSelect({
           cursor: pointer;
           text-align: left;
         }
-        .cms-trigger:hover { border-color: #4f8ef7; }
+        .cms-trigger:hover:not(:disabled) { border-color: #4f8ef7; }
+        .cms-trigger:disabled {
+          opacity: 0.65;
+          cursor: not-allowed;
+          background: #f8fafc;
+        }
         .cms-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .cms-caret { color: #94a3b8; font-size: 11px; flex-shrink: 0; }
         .cms-menu {
@@ -129,7 +136,11 @@ export default function CategoryMultiSelect({
         <button
           type="button"
           className="cms-trigger"
-          onClick={() => setOpen((v) => !v)}
+          disabled={disabled}
+          onClick={() => {
+            if (disabled) return;
+            setOpen((v) => !v);
+          }}
           aria-expanded={open}
         >
           <span>{label}</span>
@@ -151,6 +162,7 @@ export default function CategoryMultiSelect({
                   <label key={cat.id} className="cms-item">
                     <input
                       type="checkbox"
+                      disabled={disabled}
                       checked={selectedIds.has(Number(cat.id))}
                       onChange={() => toggle(cat.id)}
                     />
